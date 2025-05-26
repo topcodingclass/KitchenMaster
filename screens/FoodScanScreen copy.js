@@ -1,7 +1,6 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Button, Text, Image, ActivityIndicator } from 'react-native';
 import { Camera } from 'expo-camera';
-import * as ImageManipulator from 'expo-image-manipulator';
 import axios from 'axios';
 
 const FoodScanScreen = () => {
@@ -51,7 +50,7 @@ const FoodScanScreen = () => {
         {
           headers: {
             'Content-Type': 'application/json',
-            Authorization: 'Bearer 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',
+            Authorization: 'Bearer YOUR_OPENAI_API_KEY',
           },
         }
       );
@@ -74,6 +73,7 @@ const FoodScanScreen = () => {
       {!image ? (
         <Camera
           style={{ flex: 1 }}
+          type={Camera.Constants.Type.back}
           ref={(ref) => setCameraRef(ref)}
           onCameraReady={() => setCameraReady(true)}
         >
@@ -102,6 +102,6 @@ const FoodScanScreen = () => {
       )}
     </View>
   );
-}
+};
 
 export default FoodScanScreen;
