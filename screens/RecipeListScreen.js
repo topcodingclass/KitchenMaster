@@ -9,6 +9,8 @@ const RecipeListScreen = () => {
   const [recipes, setRecipes] = useState([]);
   const [foodType, setFoodType] = useState('');
   const [output, setOutput] = useState('');
+  const [recipeInstructions, setRecipeInstructions] = useState([]);
+
 
   const fetchUserFoods = async () => {
     try {
@@ -26,23 +28,36 @@ const RecipeListScreen = () => {
   });
 
   const getRecipesFromAI = async (foods) => {
-    try {
-      const prompt = `Using only these ingredients: ${foods.join(", ")}, generate 3 recipes. Include name, type (vegan, etc), ingredients, steps, total cooking time, calories, and difficulty.`;
-      const res = await client.chat.completions.create({
-        model: "gpt-3.5-turbo",
-        messages: [{ role: "user", content: prompt }]
-      });
-      setOutput(res.choices[0]?.message?.content);
-      const newRecipes = [
-        { id: '4', name: 'AI Recipe 1', type: 'vegan', totalTime: '40', difficulty: 'medium', calories: '300' },
-        { id: '5', name: 'AI Recipe 2', type: 'vegetarian', totalTime: '35', difficulty: 'easy', calories: '270' },
-        { id: '6', name: 'AI Recipe 3', type: 'gluten-free', totalTime: '50', difficulty: 'hard', calories: '400' }
-      ];
-      setRecipes(prev => [...prev, ...newRecipes]);
-    } catch (e) {
-      console.error("Error generating recipes:", e);
-    }
-  };
+  try {
+    const prompt = `Using only these ingredients: ${foods.join(", ")}, generate 3 recipes. Each recipe should be clearly separated and include the name, type (vegan, etc), ingredients, steps, total cooking time, calories, and difficulty.`;
+
+    const res = await client.chat.completions.create({
+      model: "gpt-3.5-turbo",
+      messages: [{ role: "user", content: prompt }]
+    });
+
+    const content = res.choices[0]?.message?.content;
+    setOutput(content);
+
+    // Naive split by double newline assuming consistent format
+    const parsedInstructions = content.split(/\n\n+/).filter(Boolean);
+
+    // Append to instructions state
+    setRecipeInstructions(prev => [...prev, ...parsedInstructions]);
+
+    const newRecipes = [
+      { id: '4', name: 'AI Recipe 1', type: 'vegan', totalTime: '40', difficulty: 'medium', calories: '300' },
+      { id: '5', name: 'AI Recipe 2', type: 'vegetarian', totalTime: '35', difficulty: 'easy', calories: '270' },
+      { id: '6', name: 'AI Recipe 3', type: 'gluten-free', totalTime: '50', difficulty: 'hard', calories: '400' }
+    ];
+
+    setRecipes(prev => [...prev, ...newRecipes]);
+  } catch (e) {
+    console.error("Error generating recipes:", e);
+  }
+  console.log(recipeInstructions)
+};
+
 
   const generateRecipe = async () => {
     const foods = await fetchUserFoods();
