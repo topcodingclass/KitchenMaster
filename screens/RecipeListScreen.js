@@ -81,7 +81,7 @@ const RecipeListScreen = ({ navigation }) => {
   const displayRecipe = ({ item, index }) => (
     <TouchableOpacity
       style={styles.row}
-      onPress={() => navigation.navigate('RecipeListInstructions', { recipe: item })}
+      onPress={() => navigation.navigate('RecipeScreen', { recipe: item })}
     >
       <Text style={styles.data}>{item.name}</Text>
       <Text style={styles.data}>{item.type}</Text>
