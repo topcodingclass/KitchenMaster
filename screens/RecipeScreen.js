@@ -13,7 +13,7 @@ const MultiLineText = ({ lines }) => (
   </View>
 );
 
-const RecipeListInstructions = ({ route }) => {
+const RecipeScreen = ({ route }) => {
   const { recipe } = route.params;
   const ingredients = Array.isArray(recipe.ingredients) ? recipe.ingredients : [];
   const steps = Array.isArray(recipe.steps)
@@ -65,4 +65,4 @@ const styles = StyleSheet.create({
   lineText: { lineHeight: 20 },
 });
 
-export default RecipeListInstructions;
+export default RecipeScreen;
