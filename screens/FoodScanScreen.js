@@ -1,33 +1,26 @@
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { useRef, useState } from 'react';
-import {  Image, StyleSheet, TouchableOpacity, View } from 'react-native';
-import {Button, Text} from 'react-native-paper';
+import { Image, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { Button, Text } from 'react-native-paper';
 import axios from 'axios';
 
-export default function FoodScanScreen() {
+export default function FoodScanScreen({ navigation }) {
   const [facing, setFacing] = useState('back');
   const [permission, requestPermission] = useCameraPermissions();
   const [photoUri, setPhotoUri] = useState(null);
   const [photoBase64, setPhotoBase64] = useState(null);
   const cameraRef = useRef(null);
-  const [result, setResult] = useState({});
+  const [result, setResult] = useState('');
   const [loading, setLoading] = useState(false);
 
-  if (!permission) {
-    return <View />;
-  }
-
+  if (!permission) return <View />;
   if (!permission.granted) {
     return (
       <View style={styles.container}>
         <Text style={styles.message}>We need your permission to show the camera</Text>
-        <Button onPress={requestPermission} title="Grant Permission" />
+        <Button onPress={requestPermission}>Grant Permission</Button>
       </View>
     );
-  }
-
-  function toggleCameraFacing() {
-    setFacing((current) => (current === 'back' ? 'front' : 'back'));
   }
 
   async function takePicture() {
@@ -50,7 +43,10 @@ export default function FoodScanScreen() {
             {
               role: 'user',
               content: [
-                { type: 'text', text: 'Identify the food simply and return a javascript object with name, quantity, expiration date.' },
+                {
+                  type: 'text',
+                  text: 'Respond ONLY with a raw JSON object. Do not wrap it in code blocks or add any other text. The object should have the following fields: name, quantity, expirationDate, type, weightLB.',
+                },
                 {
                   type: 'image_url',
                   image_url: { url: `data:image/jpeg;base64,${base64}` },
@@ -69,6 +65,10 @@ export default function FoodScanScreen() {
 
       const text = response.data.choices[0].message.content;
       setResult(text);
+      console.log(text)
+      
+      navigation.navigate('FoodScanResult', { result: text });
+
     } catch (error) {
       console.error('OpenAI error:', error.response?.data || error.message);
       setResult('Failed to identify the food.');
@@ -81,31 +81,22 @@ export default function FoodScanScreen() {
     <View style={styles.container}>
       <CameraView style={styles.camera} facing={facing} ref={cameraRef} />
 
-      {/* Overlay Buttons */}
       <View style={styles.buttonContainer}>
-        <TouchableOpacity style={styles.button} onPress={toggleCameraFacing}>
-          <Text style={styles.text}>Flip</Text>
-        </TouchableOpacity>
         <TouchableOpacity style={styles.button} onPress={takePicture}>
-          <Text style={styles.text}>Take Picture</Text>
+          <Text style={styles.text}>{photoUri ? 'Retake Picture' : 'Take Picture'}</Text>
         </TouchableOpacity>
+
+        {photoUri && (
+          <TouchableOpacity style={styles.button} onPress={() => sendToOpenAI(photoBase64)}>
+            <Text style={styles.text}>Ask GPT</Text>
+          </TouchableOpacity>
+        )}
       </View>
 
       {photoUri && (
         <View>
           <Image source={{ uri: photoUri }} style={{ width: '100%', height: 300 }} />
-          <TouchableOpacity
-            style={[styles.button, { alignSelf: 'center', marginTop: 10 }]}
-            onPress={() => sendToOpenAI(photoBase64)}
-          >
-            <Text style={styles.text}>Ask GPT</Text>
-          </TouchableOpacity>
           {loading && <Text style={styles.message}>Loading...</Text>}
-          
-          {!!result &&<View> 
-                          <Text style={styles.message}>{result}</Text>
-                          <Button>Save</Button>
-                      </View>}
         </View>
       )}
     </View>
@@ -133,12 +124,13 @@ const styles = StyleSheet.create({
     zIndex: 10,
   },
   button: {
-    backgroundColor: 'rgba(0,0,0,0.6)',
+    backgroundColor: 'rgb(170, 189, 174)',
     padding: 15,
     borderRadius: 10,
+    margin: 16,
   },
   text: {
     fontSize: 18,
-    color: 'white',
+    color: 'black',
   },
 });
