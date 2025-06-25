@@ -1,79 +1,110 @@
-import { useState } from 'react';
-import { TextInput, TouchableOpacity, View, StyleSheet } from 'react-native';
-import { Text } from 'react-native-paper';
-import { doc, updateDoc, deleteDoc } from 'firebase/firestore';
+import { StyleSheet, View, SafeAreaView, FlatList, TouchableOpacity, Image } from 'react-native';
+import { Button, TextInput, Text, Divider } from 'react-native-paper';
+import React, { useEffect, useState } from 'react';
+import { collection, addDoc, getDocs } from "firebase/firestore"; 
 import { db } from '../firebase';
 
-const FoodDetailScreen = ({ route, navigation }) => {
-  const { food } = route.params;
+const FoodListScreen = ({ navigation }) => {
+  const [foods, setFoods] = useState([]);
+  const [name, setName] = useState('');
+  const [expirationDate, setExpirationDate] = useState('');
+  const [picture, setPicture] = useState('');
+  const [quantity, setQuantity] = useState('');
+  const [scannedDate, setScannedDate] = useState('');
+  const [storageID, setStorageID] = useState('');
+  const [type, setType] = useState('');
+  const [weightLB, setWeightLB] = useState('');
 
-  const [name, setName] = useState(food.name);
-  const [quantity, setQuantity] = useState(String(food.quantity));
-  const [expirationDate, setExpirationDate] = useState(food.expirationDate);
-  const [type, setType] = useState(food.type);
-  const [weightLB, setWeightLB] = useState(String(food.weightLB || ''));
+  useEffect(() => {
+    const fetchFoods = async () => {
+      try {
+        const querySnapshot = await getDocs(collection(db, "foods"));
+        const loadedFoods = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        setFoods(loadedFoods);
+      } catch (e) {
+        console.error("Error fetching foods: ", e);
+      }
+    };
 
-  const saveFood = async () => {
+    fetchFoods();
+  }, []);
+
+  const renderFoodList = ({ item }) => (
+    <View>
+      <TouchableOpacity 
+        style={styles.foodCard}
+        onPress={() => navigation.navigate('FoodDetail', { food: item })}>
+        <Text variant='titleMedium'>{item.name}</Text>
+        {item.picture ? (
+          <Image source={{ uri: item.picture }} style={styles.image} resizeMode="cover" />
+        ) : null}
+        <Text>Expiration Date: {item.expirationDate}</Text>
+        <Text>Quantity: {item.quantity}</Text>
+        <Text>Scanned Date: {item.scannedDate}</Text>
+        <Text>Type: {item.type}</Text>
+        <Text>Weight: {item.weightLB}</Text>
+      </TouchableOpacity>
+      <Divider />
+    </View>
+  );
+
+  const addFood = async () => {
+    const newFood = {
+      name,
+      expirationDate,
+      picture,
+      quantity,
+      scannedDate,
+      storageID,
+      type,
+      weightLB
+    };
+
     try {
-      await updateDoc(doc(db, 'foods', food.id), {
-        name,
-        quantity: Number(quantity),
-        expirationDate,
-        type,
-        weightLB: weightLB ? Number(weightLB) : null,
-      });
+      const docRef = await addDoc(collection(db, "foods"), newFood);
+      setFoods([...foods, { id: docRef.id, ...newFood }]);
+  
+      setName('');
+      setExpirationDate('');
+      setPicture('');
+      setQuantity('');
+      setScannedDate('');
+      setStorageID('');
+      setType('');
+      setWeightLB('');
     } catch (e) {
-      console.log(e.message);
-    }
-  };
-
-  const deleteFood = async () => {
-    try{
-      await deleteDoc(doc(db, "foods", food.id));
-      navigation.navigate('FoodList')
-    }
-    catch (e) {
-      console.log(e.message);
+      console.error("Error adding document: ", e);
     }
   };
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Food Details</Text>
+    <SafeAreaView style={styles.container}>
+      <Text variant="headlineMedium" style={styles.title}>Food List</Text>
 
-      <Text style={styles.content}>Name: </Text>
-      <TextInput value={name} onChangeText={setName} style={styles.input} />
-      
-      <Text style={styles.content}>Quantity: </Text>
-      <TextInput value={quantity} onChangeText={setQuantity} style={styles.input} />
+      <FlatList
+        data={foods}
+        renderItem={renderFoodList}
+        keyExtractor={(item) => item.id}
+      />
 
-      <Text style={styles.content}>Expiration Date: </Text>
-      <TextInput value={expirationDate} onChangeText={setExpirationDate} style={styles.input} />
+      <Text style={styles.addFoodTitle}>Add New Food</Text>
+      <View style={styles.inputContainer}>
+        <TextInput label='Enter Name' value={name} onChangeText={setName} mode="outlined" style={styles.input} />
+        <TextInput label='Enter ExpDate (M/D/Y)' value={expirationDate} onChangeText={setExpirationDate} mode="outlined" style={styles.input} />
+        <TextInput label='Enter your picture URL' value={picture} onChangeText={setPicture} mode="outlined" style={styles.input} />
+        <TextInput label='Enter Quantity' value={quantity} onChangeText={setQuantity} mode="outlined" style={styles.input} />
+        <TextInput label='Enter Date' value={scannedDate} onChangeText={setScannedDate} mode="outlined" style={styles.input} />
+        <TextInput label='Enter Storage ID' value={storageID} onChangeText={setStorageID} mode="outlined" style={styles.input} />
+        <TextInput label='Enter Type' value={type} onChangeText={setType} mode="outlined" style={styles.input} />
+        <TextInput label='Enter Weight' value={weightLB} onChangeText={setWeightLB} mode="outlined" style={styles.input} />
+      </View>
 
-      <Text style={styles.content}>Type: </Text>
-      <TextInput value={type} onChangeText={setType} style={styles.input} />
-
-      <Text style={styles.content}>Weight in Pounds: </Text>
-      <TextInput value={weightLB} onChangeText={setWeightLB} style={styles.input} />
-
-
-
-      <TouchableOpacity style={styles.button} onPress={saveFood}>
-        <Text style={styles.text}>Save</Text>
-      </TouchableOpacity>
-
-      <TouchableOpacity style={styles.button} onPress={() => navigation.navigate('FoodScan')}>
-        <Text style={styles.text}>Retake</Text>
-      </TouchableOpacity>
-
-      <TouchableOpacity style={styles.button} onPress={deleteFood}>
-        <Text style={styles.text}>Delete</Text>
-      </TouchableOpacity>
-    </View>
+      <Button mode="outlined" onPress={addFood} style={{ marginBottom: 40 }}>Add Food</Button>
+    </SafeAreaView>
   );
 };
 
-export default FoodDetailScreen;
+export default FoodListScreen;
 
 const styles = StyleSheet.create({
   container: {
@@ -82,20 +113,23 @@ const styles = StyleSheet.create({
   title: {
     margin: 16,
   },
-  input: {
-    backgroundColor: 'white',
+  foodCard: {
     padding: 10,
-    marginHorizontal: 16,
-    marginVertical: 6,
-    borderRadius: 5,
   },
-  button: {
-    backgroundColor: 'rgb(170, 189, 174)',
-    padding: 15,
-    borderRadius: 10,
-    margin: 16,
+  image: {
+    width: '100%',
+    height: 100,
+    marginVertical: 8,
   },
-  text: {
+  addFoodTitle: {
+    fontSize: 18,
+    marginVertical: 16,
     textAlign: 'center',
+  },
+  inputContainer: {
+    marginHorizontal: 10,
+  },
+  input: {
+    marginBottom: 8,
   },
 });
