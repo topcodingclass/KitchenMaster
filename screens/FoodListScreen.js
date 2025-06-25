@@ -33,7 +33,7 @@ const FoodListScreen = ({ navigation }) => {
     <View>
       <TouchableOpacity 
         style={styles.foodCard}
-        onPress={() => navigation.navigate('FoodDetailScreen', { food: item })}>
+        onPress={() => navigation.navigate('FoodDetail', { food: item })}>
         <Text variant='titleMedium'>{item.name}</Text>
         {item.picture ? (
           <Image source={{ uri: item.picture }} style={styles.image} resizeMode="cover" />
@@ -86,7 +86,7 @@ const FoodListScreen = ({ navigation }) => {
         renderItem={renderFoodList}
         keyExtractor={(item) => item.id}
       />
-//get rid of flip, put gpt button on same line as retake, savepicture button apepears after taking picture
+
       <Text style={styles.addFoodTitle}>Add New Food</Text>
       <View style={styles.inputContainer}>
         <TextInput label='Enter Name' value={name} onChangeText={setName} mode="outlined" style={styles.input} />
