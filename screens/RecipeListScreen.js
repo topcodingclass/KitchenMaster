@@ -27,24 +27,42 @@ const RecipeListScreen = ({ navigation }) => {
 
   const getRecipesFromAI = async (foods) => {
     try {
-      const prompt = `Using only these ingredients: ${foods.join(", ")}, generate 3 recipes. Each recipe should be a JavaScript object with the following properties: name, type, ingredients, steps, totalTime, calories, and difficulty. Return a JavaScript array (not text description).`;
+      const prompt = `
+        You are a helpful recipe generator.
+        Only use the following ingredients: ${foods.join(", ")}.
+        Generate 3 recipes in JavaScript array format, with detailed steps, like this:
+        [
+          {
+            name: "Recipe Name",
+            type: "Main / Side / Dessert / etc",
+            ingredients: ["ingredient1", "ingredient2"],
+            steps: [
+              { sequence: 1, description: "Step 1", time: "5 min" },
+              { sequence: 2, description: "Step 2", time: "10 min" }
+            ],
+            totalTime: "15 min",
+            calories: 400,
+            difficulty: "Easy"
+          },
+          ...
+        ]
+        Output only the valid JavaScript array, nothing else.
+      `;
 
       const res = await client.chat.completions.create({
         model: "gpt-3.5-turbo",
-        messages: [{ role: "user", content: prompt }]
+        messages: [{ role: "user", content: prompt }],
       });
-
+  
       const content = res.choices[0]?.message?.content?.trim();
-      setOutput(content);
       console.log("AI Raw Output:\n", content);
-
-      // Safely parse JSON
-      const parsed = JSON.parse(content);
+  
+      // Parse safely (in case it returns JSON-like JS object string)
+      const parsed = eval(`(${content})`);
       if (Array.isArray(parsed)) {
         setRecipes(parsed);
-      } else {
-        throw new Error("Invalid format from AI.");
-      }
+        setOutput(content);
+      } 
     } catch (e) {
       console.error("Error generating recipes:", e);
       Alert.alert("Error", "Failed to generate recipes. Try again.");
@@ -97,12 +115,7 @@ const RecipeListScreen = ({ navigation }) => {
       keyExtractor={(item, index) => `${item.name}-${index}`}
       renderItem={displayRecipe}
       ListHeaderComponent={renderHeader}
-      ListFooterComponent={output ? (
-        <View style={styles.outputSection}>
-          <Text variant="titleMedium" style={{ marginBottom: 8 }}>Raw AI Output:</Text>
-          <Text>{output}</Text>
-        </View>
-      ) : null}
+     
     />
   );
 };
