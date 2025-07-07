@@ -34,15 +34,25 @@ const FoodListScreen = ({ navigation }) => {
       <TouchableOpacity 
         style={styles.foodCard}
         onPress={() => navigation.navigate('FoodDetail', { food: item })}>
-        <Text variant='titleMedium'>{item.name}</Text>
+
+          <View style= {{flexDirection:'row',alignItems:'center'}}>
+           <Text variant='titleMedium'>{item.name}</Text> 
+           <Text> - {item.storageID}</Text>
+          </View>
+
+
+        
         {item.picture ? (
           <Image source={{ uri: item.picture }} style={styles.image} resizeMode="cover" />
         ) : null}
-        <Text>Expiration Date: {item.expirationDate}</Text>
-        <Text>Quantity: {item.quantity}</Text>
-        <Text>Scanned Date: {item.scannedDate}</Text>
-        <Text>Type: {item.type}</Text>
-        <Text>Weight: {item.weightLB}</Text>
+
+        <View style= {{flexDirection:'row',justifyContent:'space-between'}}>
+            <Text>Quantity: {item.quantity}</Text>
+            <Text>Weight: {item.weightLB}</Text>
+            <Text>Expiration Date: {item.expirationDate}</Text>
+            <Text>Scanned Date: {item.scannedDate}</Text>
+        </View>
+        
       </TouchableOpacity>
       <Divider />
     </View>
@@ -79,7 +89,6 @@ const FoodListScreen = ({ navigation }) => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <Text variant="headlineMedium" style={styles.title}>Food List</Text>
 
       <FlatList
         data={foods}
@@ -87,19 +96,9 @@ const FoodListScreen = ({ navigation }) => {
         keyExtractor={(item) => item.id}
       />
 
-      <Text style={styles.addFoodTitle}>Add New Food</Text>
-      <View style={styles.inputContainer}>
-        <TextInput label='Enter Name' value={name} onChangeText={setName} mode="outlined" style={styles.input} />
-        <TextInput label='Enter ExpDate (M/D/Y)' value={expirationDate} onChangeText={setExpirationDate} mode="outlined" style={styles.input} />
-        <TextInput label='Enter your picture URL' value={picture} onChangeText={setPicture} mode="outlined" style={styles.input} />
-        <TextInput label='Enter Quantity' value={quantity} onChangeText={setQuantity} mode="outlined" style={styles.input} />
-        <TextInput label='Enter Date' value={scannedDate} onChangeText={setScannedDate} mode="outlined" style={styles.input} />
-        <TextInput label='Enter Storage ID' value={storageID} onChangeText={setStorageID} mode="outlined" style={styles.input} />
-        <TextInput label='Enter Type' value={type} onChangeText={setType} mode="outlined" style={styles.input} />
-        <TextInput label='Enter Weight' value={weightLB} onChangeText={setWeightLB} mode="outlined" style={styles.input} />
-      </View>
+      <Button mode="contained-tonal" onPress={() => navigation.navigate('FoodScan')} style={{ margin: 10 }}>Scan to Add</Button>
+      <Button mode="contained-tonal" onPress={() => navigation.navigate('FoodManualAdd')} style={{ margin: 10 }}>Add Manually</Button>
 
-      <Button mode="outlined" onPress={addFood} style={{ marginBottom: 40 }}>Add Food</Button>
     </SafeAreaView>
   );
 };
