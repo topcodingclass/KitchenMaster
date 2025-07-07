@@ -1,101 +1,136 @@
-import { useState } from 'react';
-import { TextInput, TouchableOpacity, View, StyleSheet } from 'react-native';
-import { Text } from 'react-native-paper';
-import { doc, updateDoc, deleteDoc } from 'firebase/firestore';
-import { db } from '../firebase';
+import { CameraView, useCameraPermissions } from 'expo-camera';
+import { useRef, useState } from 'react';
+import { Image, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { Button, Text } from 'react-native-paper';
+import axios from 'axios';
 
-const FoodDetailScreen = ({ route, navigation }) => {
-  const { food } = route.params;
+export default function FoodScanScreen({ navigation }) {
+  const [facing, setFacing] = useState('back');
+  const [permission, requestPermission] = useCameraPermissions();
+  const [photoUri, setPhotoUri] = useState(null);
+  const [photoBase64, setPhotoBase64] = useState(null);
+  const cameraRef = useRef(null);
+  const [result, setResult] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  const [name, setName] = useState(food.name);
-  const [quantity, setQuantity] = useState(String(food.quantity));
-  const [expirationDate, setExpirationDate] = useState(food.expirationDate);
-  const [type, setType] = useState(food.type);
-  const [weightLB, setWeightLB] = useState(String(food.weightLB || ''));
+  if (!permission) return <View />;
+  if (!permission.granted) {
+    return (
+      <View style={styles.container}>
+        <Text style={styles.message}>We need your permission to show the camera</Text>
+        <Button onPress={requestPermission}>Grant Permission</Button>
+      </View>
+    );
+  }
 
-  const saveFood = async () => {
+  async function takePicture() {
+    if (cameraRef.current) {
+      const photo = await cameraRef.current.takePictureAsync({ base64: true });
+      setPhotoUri(photo.uri);
+      setPhotoBase64(photo.base64);
+    }
+  }
+
+  const sendToOpenAI = async (base64) => {
+    setLoading(true);
+    setResult('');
     try {
-      await updateDoc(doc(db, 'foods', food.id), {
-        name,
-        quantity: Number(quantity),
-        expirationDate,
-        type,
-        weightLB: weightLB ? Number(weightLB) : null,
-      });
-    } catch (e) {
-      console.log(e.message);
-    }
-  };
+      const response = await axios.post(
+        'https://api.openai.com/v1/chat/completions',
+        {
+          model: 'gpt-4o',
+          messages: [
+            {
+              role: 'user',
+              content: [
+                {
+                  type: 'text',
+                  text: 'Respond ONLY with a raw JSON object. Do not wrap it in code blocks or add any other text. The object should have the following fields: name, quantity, expirationDate, type, weightLB.',
+                },
+                {
+                  type: 'image_url',
+                  image_url: { url: `data:image/jpeg;base64,${base64}` },
+                },
+              ],
+            },
+          ],
+        },
+        {
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer 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`,
+          },
+        }
+      );
 
-  const deleteFood = async () => {
-    try{
-      await deleteDoc(doc(db, "foods", food.id));
-      navigation.navigate('FoodList')
-    }
-    catch (e) {
-      console.log(e.message);
+      const text = response.data.choices[0].message.content;
+      setResult(text);
+      console.log(text)
+      
+      navigation.navigate('FoodScanResult', { result: text });
+
+    } catch (error) {
+      console.error('OpenAI error:', error.response?.data || error.message);
+      setResult('Failed to identify the food.');
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Food Details</Text>
+      <CameraView style={styles.camera} facing={facing} ref={cameraRef} />
 
-      <Text style={styles.content}>Name: </Text>
-      <TextInput value={name} onChangeText={setName} style={styles.input} />
-      
-      <Text style={styles.content}>Quantity: </Text>
-      <TextInput value={quantity} onChangeText={setQuantity} style={styles.input} />
+      <View style={styles.buttonContainer}>
+        <TouchableOpacity style={styles.button} onPress={takePicture}>
+          <Text style={styles.text}>{photoUri ? 'Retake Picture' : 'Take Picture'}</Text>
+        </TouchableOpacity>
 
-      <Text style={styles.content}>Expiration Date: </Text>
-      <TextInput value={expirationDate} onChangeText={setExpirationDate} style={styles.input} />
+        {photoUri && (
+          <TouchableOpacity style={styles.button} onPress={() => sendToOpenAI(photoBase64)}>
+            <Text style={styles.text}>Ask GPT</Text>
+          </TouchableOpacity>
+        )}
+      </View>
 
-      <Text style={styles.content}>Type: </Text>
-      <TextInput value={type} onChangeText={setType} style={styles.input} />
-
-      <Text style={styles.content}>Weight in Pounds: </Text>
-      <TextInput value={weightLB} onChangeText={setWeightLB} style={styles.input} />
-
-
-
-      <TouchableOpacity style={styles.button} onPress={saveFood}>
-        <Text style={styles.text}>Save</Text>
-      </TouchableOpacity>
-
-      <TouchableOpacity style={styles.button} onPress={() => navigation.navigate('FoodScan')}>
-        <Text style={styles.text}>Retake</Text>
-      </TouchableOpacity>
-
-      <TouchableOpacity style={styles.button} onPress={deleteFood}>
-        <Text style={styles.text}>Delete</Text>
-      </TouchableOpacity>
+      {photoUri && (
+        <View>
+          <Image source={{ uri: photoUri }} style={{ width: '100%', height: 300 }} />
+          {loading && <Text style={styles.message}>Loading...</Text>}
+        </View>
+      )}
     </View>
   );
-};
-
-export default FoodDetailScreen;
+}
 
 const styles = StyleSheet.create({
   container: {
-    paddingBottom: 20,
+    flex: 1,
   },
-  title: {
-    margin: 16,
-  },
-  input: {
-    backgroundColor: 'white',
+  message: {
+    textAlign: 'center',
     padding: 10,
-    marginHorizontal: 16,
-    marginVertical: 6,
-    borderRadius: 5,
+    fontSize: 16,
+  },
+  camera: {
+    flex: 1,
+  },
+  buttonContainer: {
+    position: 'absolute',
+    bottom: 40,
+    width: '100%',
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    zIndex: 10,
   },
   button: {
-    backgroundColor: 'rgb(124, 177, 255)',
+    backgroundColor: 'rgb(170, 189, 174)',
     padding: 15,
     borderRadius: 10,
     margin: 16,
   },
   text: {
-    textAlign: 'center',
+    fontSize: 18,
+    color: 'black',
   },
 });
