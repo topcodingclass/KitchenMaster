@@ -1,156 +1,109 @@
-
+import { StyleSheet, View, SafeAreaView, FlatList, TouchableOpacity, Image } from 'react-native';
+import { Button, TextInput, Text, Divider } from 'react-native-paper';
 import React, { useEffect, useState } from 'react';
-import { TextInput, TouchableOpacity, View, StyleSheet } from 'react-native';
-import { Text, Provider } from 'react-native-paper';
-import { doc, updateDoc, deleteDoc, addDoc, collection, getDocs  } from 'firebase/firestore';
+import { collection, addDoc, getDocs } from "firebase/firestore"; 
 import { db } from '../firebase';
-import { Dropdown } from 'react-native-paper-dropdown';
 
-
-
-
-const FoodDetailScreen = ({ route, navigation }) => {
-  const { food } = route.params;
-
-  const [name, setName] = useState(food.name);
-  const [quantity, setQuantity] = useState(String(food.quantity));
-  const [expirationDate, setExpirationDate] = useState(food.expirationDate);
-  const [type, setType] = useState(food.type);
-  const [weightLB, setWeightLB] = useState(String(food.weightLB || ''));
-  
-  const [storage, setStorage] = useState(food.storage || '');
+const FoodListScreen = ({ navigation }) => {
+  const [foods, setFoods] = useState([]);
+  const [name, setName] = useState('');
+  const [expirationDate, setExpirationDate] = useState('');
+  const [picture, setPicture] = useState('');
+  const [quantity, setQuantity] = useState('');
+  const [scannedDate, setScannedDate] = useState('');
   const [storageID, setStorageID] = useState('');
-  const [storages, setStorages] = useState([]); //for dropdown
+  const [type, setType] = useState('');
+  const [weightLB, setWeightLB] = useState('');
 
+  useEffect(() => {
+    const fetchFoods = async () => {
+      try {
+        const querySnapshot = await getDocs(collection(db, "foods"));
+        const loadedFoods = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        setFoods(loadedFoods);
+      } catch (e) {
+        console.error("Error fetching foods: ", e);
+      }
+    };
 
-useEffect(() => {
-  const fetchStorages = async () => {
-    try {
-      const querySnapshot = await getDocs(collection(db, "storages"));
-      const loadedStorages = querySnapshot.docs.map(doc => {
-        const data = doc.data();
-        return { label: data.name, value: data.name };
-      });
-      setStorages(loadedStorages);
+    fetchFoods();
+  }, []);
 
-      setStorage(food.storage);
-    } catch (e) {
-      console.error("Error fetching storages: ", e);
-    }
-  };
+  const renderFoodList = ({ item }) => (
+  <View>
+    <TouchableOpacity 
+      style={styles.foodCard}
+      onPress={() => navigation.navigate('FoodDetail', { food: item })}>
 
-  fetchStorages();
-}, []);
+      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+        <Text variant='titleMedium'>{item.name}</Text> 
+      </View>
 
-    // useEffect(() => {
-    //     const fetchFoods = async () => {
-    //       try {
-    //         const querySnapshot = await getDocs(collection(db, "foods"));
-    //         const loadedFoods = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-    //         setFoods(loadedFoods);
-    //       } catch (e) {
-    //         console.error("Error fetching foods: ", e);
-    //       }
-    //     };
-    
-    //     fetchFoods();
-    //   }, []);
+      {item.picture ? (
+        <Image source={{ uri: item.picture }} style={styles.image} resizeMode="cover" />
+      ) : null}
 
-  const saveFood = async () => {
-    try {
-      await updateDoc(doc(db, 'foods', food.id), {
-        name,
-        quantity: Number(quantity),
-        expirationDate,
-        type,
-        weightLB: weightLB ? Number(weightLB) : null,
-        storage:storage
-      });
-    } catch (e) {
-      console.log(e.message);
-    }
-  };
-
-  const deleteFood = async () => {
-    try{
-      await deleteDoc(doc(db, "foods", food.id));
-      navigation.navigate('FoodList')
-    }
-    catch (e) {
-      console.log(e.message);
-    }
-  };
-
-  const addStorage = async () => {
-  const newStorage = { name: storageID };
-
-  try {
-    const docRef = await addDoc(collection(db, 'storages'), newStorage);
-    setStorages([...storages, { label: storageID, value: storageID }]);
-    setStorageID('');
-  } catch (e) {
-    console.error('Error adding document: ', e);
-  }
-};
-
-
-
-  return (
-    <Provider>
-      <View style={styles.container}>
-        <Text style={styles.title}>Food Details</Text>
-
-        <Text style={styles.content}>Name: </Text>
-        <TextInput value={name} onChangeText={setName} style={styles.input} />
-        
-        <Text style={styles.content}>Quantity: </Text>
-        <TextInput value={quantity} onChangeText={setQuantity} style={styles.input} />
-
-        <Text style={styles.content}>Expiration Date: </Text>
-        <TextInput value={expirationDate} onChangeText={setExpirationDate} style={styles.input} />
-
-        <Text style={styles.content}>Type: </Text>
-        <TextInput value={type} onChangeText={setType} style={styles.input} />
-
-        <Text style={styles.content}>Weight in Pounds: </Text>
-        <TextInput value={weightLB} onChangeText={setWeightLB} style={styles.input} />
-
-        
-
-        <Dropdown
-          label="Storage"
-          placeholder="Select Storage"
-          options={storages}
-          value={storage}
-          onSelect={setStorage}
-
-        />
-        <Text style={styles.content}>Enter New Storage Here: </Text>
-        <TextInput value={storageID} onChangeText={setStorageID} style={styles.input} />
-
-        <TouchableOpacity style={styles.button} onPress={addStorage}>
-          <Text style={styles.text}>Add Storage</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.button} onPress={saveFood}>
-          <Text style={styles.text}>Save</Text>
-        </TouchableOpacity>
-        
-        <TouchableOpacity style={styles.button} onPress={deleteFood}>
-          <Text style={styles.text}>Delete</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.button} onPress={() => navigation.navigate('StorageList')}>
-          <Text style={styles.text}>Storage List</Text>
-        </TouchableOpacity>
-
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' }}>
+        <Text>Quantity: {item.quantity}</Text>
+        <Text>Weight: {item.weightLB}</Text>
+        <Text>Expiration: {item.expirationDate}</Text>
+        <Text>Storage: {item.storage}</Text>
+        <Text>Date Added: {item.scannedDate}</Text>
         
       </View>
-    </Provider>
+
+    </TouchableOpacity>
+    <Divider />
+  </View>
+);
+
+  const addFood = async () => {
+    const newFood = {
+      name,
+      expirationDate,
+      picture,
+      quantity,
+      scannedDate,
+      storageID,
+      type,
+      weightLB
+    };
+
+    try {
+      const docRef = await addDoc(collection(db, "foods"), newFood);
+      setFoods([...foods, { id: docRef.id, ...newFood }]);
+  
+      setName('');
+      setExpirationDate('');
+      setPicture('');
+      setQuantity('');
+      setScannedDate('');
+      setStorageID('');
+      setType('');
+      setWeightLB('');
+    } catch (e) {
+      console.error("Error adding document: ", e);
+    }
+  };
+
+  return (
+    <SafeAreaView style={styles.container}>
+
+      <FlatList
+        data={foods}
+        renderItem={renderFoodList}
+        keyExtractor={(item) => item.id}
+      />
+
+      <Button mode="contained-tonal" onPress={() => navigation.navigate('FoodScan')} style={{ margin: 10 }}>Scan to Add</Button>
+      <Button mode="contained-tonal" onPress={() => navigation.navigate('FoodManualAdd')} style={{ margin: 10 }}>Add Manually</Button>
+
+
+    </SafeAreaView>
   );
 };
 
-export default FoodDetailScreen;
+export default FoodListScreen;
 
 const styles = StyleSheet.create({
   container: {
@@ -159,20 +112,23 @@ const styles = StyleSheet.create({
   title: {
     margin: 16,
   },
-  input: {
-    backgroundColor: 'white',
+  foodCard: {
     padding: 10,
-    marginHorizontal: 16,
-    marginVertical: 6,
-    borderRadius: 5,
   },
-  button: {
-    backgroundColor: 'rgb(124, 177, 255)',
-    padding: 15,
-    borderRadius: 10,
-    margin: 16,
+  image: {
+    width: '100%',
+    height: 100,
+    marginVertical: 8,
   },
-  text: {
+  addFoodTitle: {
+    fontSize: 18,
+    marginVertical: 16,
     textAlign: 'center',
+  },
+  inputContainer: {
+    marginHorizontal: 10,
+  },
+  input: {
+    marginBottom: 8,
   },
 });
