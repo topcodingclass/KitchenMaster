@@ -1,68 +1,197 @@
-// RecipeListInstructions.js
-import React from 'react';
-import { View, ScrollView, StyleSheet } from 'react-native';
-import { Text, Divider } from 'react-native-paper';
-
-const MultiLineText = ({ lines }) => (
-  <View style={{ marginTop: 4 }}>
-    {lines.map((line, index) => (
-      <Text key={index} style={styles.lineText}>
-        {line}
-      </Text>
-    ))}
-  </View>
-);
+import React, { useState, useEffect, useRef } from 'react';
+import { ScrollView, StyleSheet, View } from 'react-native';
+import { Card, Title, Paragraph, Text, Divider, Button } from 'react-native-paper';
 
 const RecipeScreen = ({ route }) => {
   const { recipe } = route.params;
+
   const ingredients = Array.isArray(recipe.ingredients) ? recipe.ingredients : [];
-  const steps = Array.isArray(recipe.steps)
-    ? recipe.steps.map(step => `${step.sequence}. ${step.description} (${step.time})`)
-    : [];
+  const steps = Array.isArray(recipe.steps) ? recipe.steps : [];
+
+  const [secondsLeft, setSecondsLeft] = useState(0);
+  const [isRunning, setIsRunning] = useState(false);
+  const intervalRef = useRef(null);
+
+  // Countdown timer logic
+  useEffect(() => {
+    if (isRunning && secondsLeft > 0) {
+      intervalRef.current = setInterval(() => {
+        setSecondsLeft(prev => {
+          if (prev <= 1) {
+            clearInterval(intervalRef.current);
+            setIsRunning(false);
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    } else {
+      clearInterval(intervalRef.current);
+    }
+
+    return () => clearInterval(intervalRef.current);
+  }, [isRunning, secondsLeft]);
+
+  const formatTime = (totalSeconds) => {
+    const mins = String(Math.floor(totalSeconds / 60)).padStart(2, '0');
+    const secs = String(totalSeconds % 60).padStart(2, '0');
+    return `${mins}:${secs}`;
+  };
+
+  const parseStepTime = (timeStr) => {
+    const match = timeStr.match(/(\d+)\s*min/);
+    return match ? parseInt(match[1]) * 60 : 0;
+  };
+
+  const startStepTimer = (timeStr) => {
+    const duration = parseStepTime(timeStr);
+    setSecondsLeft(duration);
+    setIsRunning(true);
+  };
+
+  const handleReset = () => {
+    clearInterval(intervalRef.current);
+    setIsRunning(false);
+    setSecondsLeft(0);
+  };
+  
 
   return (
     <ScrollView style={styles.container}>
-      <Text variant="titleLarge" style={styles.title}>{recipe.name}</Text>
+      <Card style={styles.card}>
+        <Card.Content>
+          <Title style={styles.title}>{recipe.name}</Title>
+          <Paragraph style={styles.sub}>🍽 {recipe.type}</Paragraph>
+          <Divider style={styles.divider} />
 
-      <View style={styles.section}>
-        <Text variant="titleMedium">Type:</Text>
-        <Text>{recipe.type}</Text>
-      </View>
+          <Paragraph style={styles.sectionTitle}>🧂 Ingredients</Paragraph>
+          {ingredients.map((item, index) => (
+            <Paragraph key={index} style={styles.bullet}>• {item}</Paragraph>
+          ))}
 
-      {ingredients.length > 0 && (
-        <View style={styles.section}>
-          <Text variant="titleMedium">Ingredients:</Text>
-          <MultiLineText lines={ingredients} />
-        </View>
-      )}
+          <Paragraph style={styles.sectionTitle}>👣 Steps</Paragraph>
+          {steps.map((step, index) => (
+            <View key={index} style={styles.stepRow}>
+              <Paragraph style={styles.stepText}>
+                {step.sequence}. {step.description} ({step.time})
+              </Paragraph>
+              <Button
+                mode="outlined"
+                onPress={() => startStepTimer(step.time)}
+                style={styles.stepButton}
+              >
+                Start Timer
+              </Button>
+            </View>
+          ))}
 
-      {steps.length > 0 && (
-        <View style={styles.section}>
-          <Text variant="titleMedium">Steps:</Text>
-          <MultiLineText lines={steps} />
-        </View>
-      )}
+          <Divider style={styles.divider} />
 
-      <View style={styles.sectionRow}>
-        <Text>Total Time: {recipe.totalTime}</Text>
-        <Text>Calories: {recipe.calories}</Text>
-      </View>
+          <Paragraph style={styles.info}>⏱ Total Time: {recipe.totalTime}</Paragraph>
+          <Paragraph style={styles.info}>🔥 Difficulty: {recipe.difficulty}</Paragraph>
+          <Paragraph style={styles.info}>⚡ Calories: {recipe.calories}</Paragraph>
 
-      <View style={styles.section}>
-        <Text>Difficulty: {recipe.difficulty}</Text>
-      </View>
+          <Divider style={styles.divider} />
 
-      <Divider style={{ marginTop: 20 }} />
+          <View style={styles.timerContainer}>
+            <Text style={styles.timerLabel}>🕒 Timer: {formatTime(secondsLeft)}</Text>
+            <View style={styles.timerButtons}>
+              <Button
+                mode="contained"
+                onPress={() => setIsRunning(true)}
+                disabled={isRunning || secondsLeft === 0}
+                style={styles.timerButton}
+              >
+                Start
+              </Button>
+              <Button
+                mode="contained"
+                onPress={() => setIsRunning(false)}
+                disabled={!isRunning}
+                style={styles.timerButton}
+              >
+                Pause
+              </Button>
+              <Button
+                mode="outlined"
+                onPress={handleReset}
+                style={styles.timerButton}
+              >
+                Reset
+              </Button>
+            </View>
+          </View>
+        </Card.Content>
+      </Card>
     </ScrollView>
   );
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f5f5f5', padding: 20, paddingTop: 40 },
-  title: { marginBottom: 20, fontWeight: 'bold' },
-  section: { marginBottom: 15 },
-  sectionRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 15 },
-  lineText: { lineHeight: 20 },
+  container: {
+    flex: 1,
+    backgroundColor: '#ffffff',
+    padding: 16,
+  },
+  card: {
+    borderRadius: 12,
+    elevation: 3,
+    paddingBottom: 16,
+  },
+  title: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    marginBottom: 4,
+  },
+  sub: {
+    color: '#666',
+    marginBottom: 12,
+  },
+  sectionTitle: {
+    fontWeight: 'bold',
+    marginTop: 12,
+    marginBottom: 4,
+  },
+  bullet: {
+    marginLeft: 8,
+    marginBottom: 4,
+  },
+  info: {
+    marginTop: 6,
+  },
+  divider: {
+    marginVertical: 12,
+  },
+  stepRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  stepText: {
+    flex: 1,
+    marginRight: 8,
+  },
+  stepButton: {
+    height: 32,
+  },
+  timerContainer: {
+    marginTop: 12,
+    alignItems: 'center',
+  },
+  timerLabel: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 8,
+  },
+  timerButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 8,
+  },
+  timerButton: {
+    marginHorizontal: 4,
+  },
 });
 
 export default RecipeScreen;
