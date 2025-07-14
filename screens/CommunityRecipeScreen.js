@@ -1,30 +1,64 @@
-import { StyleSheet, Text, View, FlatList, SafeAreaView, reduce, TouchableOpacity } from 'react-native'
-import React, {useEffect, useState} from 'react'
+import { StyleSheet,  View, FlatList, SafeAreaView, reduce, TouchableOpacity, } from 'react-native'
+import { Text, TextInput } from 'react-native-paper';
+import React, {useEffect, useState, useLayoutEffect} from 'react'
 import { collection , getDocs, addDoc } from "firebase/firestore"; 
 import { db } from '../firebase';
 import { StarRatingDisplay } from 'react-native-star-rating-widget';
 
 
 
+
 const CommunityRecipeScreen = ({navigation}) => {
 
   const [recipes, setRecipes] = useState([]);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filteredRecipes, setFilteredRecipes] = useState([]);
 
-    useEffect (()=>{
-        const readRecipes = async () => {
-            const querySnapshot = await getDocs(collection(db, "recipes"));
+  
+useEffect(() => {
+  const readRecipes = async () => {
+    const querySnapshot = await getDocs(collection(db, "recipes"));
+    const recipeList = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    setRecipes(recipeList);
+    setFilteredRecipes(recipeList); // initialize
+  };
+  readRecipes();
+}, []);
 
-            setRecipes(querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-            
-        }
-        readRecipes()
+useEffect(() => {
+  const lowerQuery = searchQuery.toLowerCase();
 
-    }, [])
+  const filtered = recipes.filter(recipe =>
+    recipe.name.toLowerCase().includes(lowerQuery) ||
+    recipe.type.join(', ').toLowerCase().includes(lowerQuery)
+  );
 
-    useEffect (()=>{
-        console.log(recipes)
+  setFilteredRecipes(filtered);
+}, [searchQuery, recipes]);
 
-    }, [recipes])
+
+useLayoutEffect(() => {
+  navigation.setOptions({
+     headerRight: () => (
+      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+        <TextInput
+          placeholder="Search"
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+          style={{ backgroundColor: 'white', width: 200, height: 35 }}
+          dense
+        />
+      </View>
+    ),
+  });
+}, [navigation, searchQuery]);
+
+    // useEffect (()=>{
+    //     console.log(recipes)
+
+    // }, [recipes])
+
+
 
     const getAverageRating = (ratings) => {
       if (ratings.length === 0) return 0;
@@ -34,15 +68,19 @@ const CommunityRecipeScreen = ({navigation}) => {
 
     const renderItem = ({item, index}) => (
       <View >
-        <TouchableOpacity style = {styles.item} onPress={() =>navigation.navigate ("Detail", {recipe:item})}>
-            <Text styles = {styles.text}>{index+1}. {item.name}</Text>
-            <Text styles = {styles.text}>type: {item.type.join(", ")}</Text>
+        <TouchableOpacity style = {styles.item} onPress={() =>navigation.navigate ("CommunityRecipeDetail", {recipe:item})}>
+            <Text variant="titleSmall">{index+1}. {item.name}</Text>
             <Text styles = {styles.text}>difficulty: {item.difficulties}</Text>
+
+            <View style = {{flexDirection: 'row', justifyContent: 'space-around'}}>
+              <Text styles = {styles.text}>type: {item.type.join(", ")}</Text>
+           
           <StarRatingDisplay
             rating={getAverageRating(item.rating)}
             starSize={16}
             color="gold"
-          />
+          /> 
+          </View>
         </TouchableOpacity>
         
       </View>
@@ -54,11 +92,9 @@ const CommunityRecipeScreen = ({navigation}) => {
 
   return (
     <SafeAreaView>
-      <View style = {{alignSelf: 'center'}}>
-        <Text>Top Ten Best Rated Dishes</Text>
-      </View>
+     
       <View>
-        <FlatList data = {recipes} renderItem={renderItem} />
+        <FlatList data={filteredRecipes} renderItem={renderItem} />
       </View>
       
     </SafeAreaView>
