@@ -1,15 +1,14 @@
 // RecipeListScreen.js
 import React, { useState } from 'react';
-import { View, FlatList, StyleSheet, TouchableOpacity, Alert } from 'react-native';
-import { Text, Button, Divider } from 'react-native-paper';
+import { View, FlatList, StyleSheet, Alert } from 'react-native';
+import { Text, Button, Card, Title, Paragraph, Divider } from 'react-native-paper';
 import { collection, getDocs } from 'firebase/firestore';
 import { db } from '../firebase';
 import OpenAI from 'openai';
 
 const RecipeListScreen = ({ navigation }) => {
   const [recipes, setRecipes] = useState([]);
-  const [output, setOutput] = useState('');
-
+  
   const fetchUserFoods = async () => {
     try {
       const snapshot = await getDocs(collection(db, "foods"));
@@ -30,7 +29,7 @@ const RecipeListScreen = ({ navigation }) => {
       const prompt = `
         You are a helpful recipe generator.
         Only use the following ingredients: ${foods.join(", ")}.
-        Generate 3 recipes in JavaScript array format, with detailed steps, like this:
+        Generate 3 recipes in JavaScript array format, like this:
         [
           {
             name: "Recipe Name",
@@ -43,8 +42,7 @@ const RecipeListScreen = ({ navigation }) => {
             totalTime: "15 min",
             calories: 400,
             difficulty: "Easy"
-          },
-          ...
+          }
         ]
         Output only the valid JavaScript array, nothing else.
       `;
@@ -53,16 +51,12 @@ const RecipeListScreen = ({ navigation }) => {
         model: "gpt-3.5-turbo",
         messages: [{ role: "user", content: prompt }],
       });
-  
+
       const content = res.choices[0]?.message?.content?.trim();
-      console.log("AI Raw Output:\n", content);
-  
-      // Parse safely (in case it returns JSON-like JS object string)
       const parsed = eval(`(${content})`);
       if (Array.isArray(parsed)) {
         setRecipes(parsed);
-        setOutput(content);
-      } 
+      }
     } catch (e) {
       console.error("Error generating recipes:", e);
       Alert.alert("Error", "Failed to generate recipes. Try again.");
@@ -78,17 +72,16 @@ const RecipeListScreen = ({ navigation }) => {
     await getRecipesFromAI(foods);
   };
 
-  const displayRecipe = ({ item, index }) => (
-    <TouchableOpacity
-      style={styles.row}
-      onPress={() => navigation.navigate('RecipeScreen', { recipe: item })}
-    >
-      <Text style={styles.data}>{item.name}</Text>
-      <Text style={styles.data}>{item.type}</Text>
-      <Text style={styles.data}>{item.totalTime}</Text>
-      <Text style={styles.data}>{item.difficulty}</Text>
-      <Text style={styles.data}>{item.calories}</Text>
-    </TouchableOpacity>
+  const displayRecipe = ({ item }) => (
+    <Card style={styles.card} onPress={() => navigation.navigate('RecipeScreen', { recipe: item })}>
+      <Card.Content>
+        <Title style={styles.recipeName}>{item.name}</Title>
+        <Paragraph>🍽 Type: {item.type}</Paragraph>
+        <Paragraph>⏱ Time: {item.totalTime}</Paragraph>
+        <Paragraph>🔥 Difficulty: {item.difficulty}</Paragraph>
+        <Paragraph>⚡ Calories: {item.calories}</Paragraph>
+      </Card.Content>
+    </Card>
   );
 
   const renderHeader = () => (
@@ -96,15 +89,7 @@ const RecipeListScreen = ({ navigation }) => {
       <Button mode="contained" onPress={generateRecipe} style={styles.button}>
         Generate Recipes
       </Button>
-
-      <View style={styles.headerRow}>
-        <Text style={styles.header}>Name</Text>
-        <Text style={styles.header}>Type</Text>
-        <Text style={styles.header}>Total Time</Text>
-        <Text style={styles.header}>Difficulty</Text>
-        <Text style={styles.header}>Calories</Text>
-      </View>
-      <Divider style={{ marginBottom: 10 }} />
+      <Divider style={styles.divider} />
     </>
   );
 
@@ -115,19 +100,29 @@ const RecipeListScreen = ({ navigation }) => {
       keyExtractor={(item, index) => `${item.name}-${index}`}
       renderItem={displayRecipe}
       ListHeaderComponent={renderHeader}
-     
     />
   );
 };
 
 const styles = StyleSheet.create({
-  container: { backgroundColor: '#f5f5f5', flex: 1, padding: 20, paddingTop: 40 },
-  button: { marginBottom: 20 },
-  headerRow: { flexDirection: 'row', marginBottom: 10 },
-  row: { flexDirection: 'row', marginBottom: 8 },
-  header: { fontWeight: 'bold', width: '20%' },
-  data: { width: '20%' },
-  outputSection: { marginTop: 20, marginBottom: 40 }
+  container: {
+    backgroundColor: '#fff',
+    flex: 1,
+    paddingHorizontal: 16,
+    paddingTop: 40,},
+  button: {
+    marginBottom: 16,},
+  card: {
+    marginBottom: 12,
+    backgroundColor: '#f8f9fa',
+    borderRadius: 12,
+    elevation: 2,},
+  recipeName: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 4,},
+  divider: {
+    marginBottom: 16,},
 });
 
 export default RecipeListScreen;
