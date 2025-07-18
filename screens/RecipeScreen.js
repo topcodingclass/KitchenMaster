@@ -12,7 +12,7 @@ const RecipeScreen = ({ route }) => {
   const [isRunning, setIsRunning] = useState(false);
   const intervalRef = useRef(null);
 
-  // Countdown timer logic
+  // countdown timer code
   useEffect(() => {
     if (isRunning && secondsLeft > 0) {
       intervalRef.current = setInterval(() => {
@@ -54,7 +54,7 @@ const RecipeScreen = ({ route }) => {
     setIsRunning(false);
     setSecondsLeft(0);
   };
-  
+
 
   return (
     <ScrollView style={styles.container}>
