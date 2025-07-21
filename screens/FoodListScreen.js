@@ -1,6 +1,6 @@
 import { StyleSheet, View, SafeAreaView, FlatList, TouchableOpacity, Image } from 'react-native';
 import { Button, TextInput, Text, Divider } from 'react-native-paper';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useLayoutEffect } from 'react';
 import { collection, addDoc, getDocs } from "firebase/firestore"; 
 import { db } from '../firebase';
 
@@ -14,6 +14,19 @@ const FoodListScreen = ({ navigation }) => {
   const [storageID, setStorageID] = useState('');
   const [type, setType] = useState('');
   const [weightLB, setWeightLB] = useState('');
+
+
+
+  useLayoutEffect(() => {
+      navigation.setOptions({
+        headerRight: () => (
+          <TouchableOpacity onPress={() => navigation.navigate('StorageList')} style={[styles.button, { marginRight: 15 }]}>
+            <Text>Storage List</Text>
+          </TouchableOpacity>
+        )
+      });
+    }, [navigation]);
+
 
   useEffect(() => {
     const fetchFoods = async () => {
@@ -30,32 +43,30 @@ const FoodListScreen = ({ navigation }) => {
   }, []);
 
   const renderFoodList = ({ item }) => (
-  <View>
-    <TouchableOpacity 
-      style={styles.foodCard}
-      onPress={() => navigation.navigate('FoodDetail', { food: item })}>
+    <View>
+      <TouchableOpacity 
+        style={styles.foodCard}
+        onPress={() => navigation.navigate('Food Detail', { food: item })}
+      >
+        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+          <Text style={styles.titleText}>{item.name}</Text> 
+        </View>
 
-      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-        <Text variant='titleMedium'>{item.name}</Text> 
-      </View>
+        {item.picture ? (
+          <Image source={{ uri: item.picture }} style={styles.image} resizeMode="cover" />
+        ) : null}
 
-      {item.picture ? (
-        <Image source={{ uri: item.picture }} style={styles.image} resizeMode="cover" />
-      ) : null}
-
-      <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' }}>
-        <Text>Quantity: {item.quantity}</Text>
-        <Text>Weight: {item.weightLB}</Text>
-        <Text>Expiration: {item.expirationDate}</Text>
-        <Text>Storage: {item.storage}</Text>
-        <Text>Date Added: {item.scannedDate}</Text>
-        
-      </View>
-
-    </TouchableOpacity>
-    <Divider />
-  </View>
-);
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' }}>
+          <Text style={styles.infoText}>Quantity: {item.quantity}</Text>
+          <Text style={styles.infoText}>Weight: {item.weightLB}</Text>
+          <Text style={styles.infoText}>Expiration: {item.expirationDate}</Text>
+          <Text style={styles.infoText}>Storage: {item.storage}</Text>
+          <Text style={styles.infoText}>Date Added: {item.scannedDate?.toDate().toDateString()}</Text>
+        </View>
+      </TouchableOpacity>
+      <Divider />
+    </View>
+  );
 
   const addFood = async () => {
     const newFood = {
@@ -95,9 +106,22 @@ const FoodListScreen = ({ navigation }) => {
         keyExtractor={(item) => item.id}
       />
 
-      <Button mode="contained-tonal" onPress={() => navigation.navigate('FoodScan')} style={{ margin: 10 }}>Scan to Add</Button>
-      <Button mode="contained-tonal" onPress={() => navigation.navigate('FoodManualAdd')} style={{ margin: 10 }}>Add Manually</Button>
+      <Button 
+        mode="contained" 
+        onPress={() => navigation.navigate('FoodScan')} 
+        style={styles.button} 
+        labelStyle={styles.text}
+      >
+        Scan to Add
+      </Button>
 
+      <Button 
+        mode="contained" 
+        onPress={() => navigation.navigate('FoodManualAdd')} 
+        style={styles.button} 
+        labelStyle={styles.text}>
+        Add Manually
+      </Button>
 
     </SafeAreaView>
   );
@@ -107,28 +131,43 @@ export default FoodListScreen;
 
 const styles = StyleSheet.create({
   container: {
-    paddingBottom: 20,
-  },
-  title: {
-    margin: 16,
+    flex: 1,
+    padding: 10,
+    backgroundColor: '#fff',
   },
   foodCard: {
-    padding: 10,
+    paddingVertical: 12,
+    paddingHorizontal: 0,
+    borderBottomWidth: 1,
+    borderColor: '#ccc',
+  },
+  titleText: {
+    fontWeight: '700',
+    fontSize: 16,
+    color: '#000',
+    marginVertical: 8,
+  },
+  infoText: {
+    color: '#000',
+    marginVertical: 8,
   },
   image: {
     width: '100%',
     height: 100,
     marginVertical: 8,
+    borderRadius: 6,
   },
-  addFoodTitle: {
-    fontSize: 18,
-    marginVertical: 16,
+  button: {
+  backgroundColor: 'rgb(124, 177, 255)',
+  paddingVertical: 14,
+  paddingHorizontal: 10, 
+  borderRadius: 10,
+  marginVertical: 6, 
+  marginHorizontal: 0,
+},
+  text: {
     textAlign: 'center',
-  },
-  inputContainer: {
-    marginHorizontal: 10,
-  },
-  input: {
-    marginBottom: 8,
+    color: 'white',
+    fontWeight: '600',
   },
 });
