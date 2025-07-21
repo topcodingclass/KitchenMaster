@@ -1,8 +1,8 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useLayoutEffect } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import { Card, Title, Paragraph, Text, Divider, Button } from 'react-native-paper';
 
-const RecipeScreen = ({ route }) => {
+const RecipeScreen = ({ navigation, route }) => {
   const { recipe } = route.params;
 
   const ingredients = Array.isArray(recipe.ingredients) ? recipe.ingredients : [];
@@ -12,7 +12,13 @@ const RecipeScreen = ({ route }) => {
   const [isRunning, setIsRunning] = useState(false);
   const intervalRef = useRef(null);
 
-  // countdown timer code
+  useLayoutEffect(() => {
+    navigation.setOptions({
+      title: recipe.name,
+    });
+  }, [navigation, recipe]);
+
+//timer code
   useEffect(() => {
     if (isRunning && secondsLeft > 0) {
       intervalRef.current = setInterval(() => {
@@ -55,12 +61,10 @@ const RecipeScreen = ({ route }) => {
     setSecondsLeft(0);
   };
 
-
   return (
     <ScrollView style={styles.container}>
       <Card style={styles.card}>
         <Card.Content>
-          <Title style={styles.title}>{recipe.name}</Title>
           <Paragraph style={styles.sub}>🍽 {recipe.type}</Paragraph>
           <Divider style={styles.divider} />
 
