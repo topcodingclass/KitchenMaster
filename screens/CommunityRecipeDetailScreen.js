@@ -2,6 +2,7 @@ import React, { useLayoutEffect } from 'react';
 import {SafeAreaView, StyleSheet, View, ScrollView,} from 'react-native';
 import { Text } from 'react-native-paper';
 import { StarRatingDisplay } from 'react-native-star-rating-widget';
+import { Rating } from 'react-native-elements';
 
 const CommunityRecipeDetailScreen = ({ navigation, route }) => {
   const { recipe } = route.params;
@@ -16,11 +17,12 @@ const CommunityRecipeDetailScreen = ({ navigation, route }) => {
     navigation.setOptions({
       title: recipe.name,
       headerRight: () => (
-        <View style={{ marginRight: 10 }}>
+        <View style={{ marginRight: 5, flexDirection: 'row' }}>
           <StarRatingDisplay
             rating={getAverageRating(recipe.rating)}
             starSize={18}
             color="gold"
+            starStyle = {{marginHorizontal: -1}}
           />
         </View>
       ),
@@ -30,7 +32,7 @@ const CommunityRecipeDetailScreen = ({ navigation, route }) => {
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.content}>
-        <Text style={styles.recipeTitle}>{recipe.name}</Text>
+        
         <Text style={styles.description}>{recipe.description}</Text>
 
        
@@ -48,6 +50,7 @@ const CommunityRecipeDetailScreen = ({ navigation, route }) => {
             <Text key={index} style={styles.listItem}>
               • {item.ingredient} - {item.quantity}
             </Text>
+
           ))}
         </View>
 
