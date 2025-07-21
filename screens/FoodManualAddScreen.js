@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { TextInput, TouchableOpacity, View, StyleSheet } from 'react-native';
 import { Text } from 'react-native-paper';
-import { doc, updateDoc, deleteDoc, addDoc, collection } from 'firebase/firestore';
+import { doc, updateDoc, deleteDoc, addDoc, collection, Timestamp } from 'firebase/firestore';
 import { db } from '../firebase';
 
 const FoodManualAddScreen = () => {
@@ -16,7 +16,7 @@ const [weightLB, setWeightLB] = useState('');
 
 
   const addFood = async () => {
-  const newFood = { name, quantity: Number(quantity), expirationDate, type, weightLB: weightLB ? Number(weightLB) : null };
+  const newFood = { name, quantity: Number(quantity), expirationDate, type, weightLB: weightLB ? Number(weightLB) : null, scannedDate:Timestamp.fromDate(new Date()),};
   try {
     const docRef = await addDoc(collection(db, "foods"), newFood);
     console.log("Document written with ID: ", docRef.id);
@@ -27,6 +27,7 @@ const [weightLB, setWeightLB] = useState('');
     setExpirationDate('');
     setType('');
     setWeightLB('');
+
   } catch (e) {
     console.error("Error adding document: ", e);
   }
@@ -51,6 +52,7 @@ const [weightLB, setWeightLB] = useState('');
       <Text style={styles.content}>Weight in Pounds: </Text>
       <TextInput value={weightLB} onChangeText={setWeightLB} style={styles.input} />
 
+      
 
 
       <TouchableOpacity style={styles.button} onPress={addFood}>
