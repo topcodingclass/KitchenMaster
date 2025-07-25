@@ -1,5 +1,5 @@
 import { StyleSheet,  View, FlatList, SafeAreaView, reduce, TouchableOpacity, } from 'react-native'
-import { Text, TextInput } from 'react-native-paper';
+import { Text, TextInput, Divider } from 'react-native-paper';
 import React, {useEffect, useState, useLayoutEffect} from 'react'
 import { collection , getDocs, addDoc } from "firebase/firestore"; 
 import { db } from '../firebase';
@@ -39,6 +39,13 @@ useEffect(() => {
 
 useLayoutEffect(() => {
   navigation.setOptions({
+    headerTitle: () => (
+      <View style={{ flex: 1, flexDirection: "row", alignItems:'flex-start' }}>
+        <Text variant="titleMedium">
+          Top Recipes
+        </Text>
+      </View>
+    ),
      headerRight: () => (
       <View style={{ flexDirection: 'row', alignItems: 'center' }}>
         <TextInput
@@ -69,18 +76,25 @@ useLayoutEffect(() => {
     const renderItem = ({item, index}) => (
       <View >
         <TouchableOpacity style = {styles.item} onPress={() =>navigation.navigate ("CommunityRecipeDetail", {recipe:item})}>
-            <Text variant="titleSmall">{index+1}. {item.name}</Text>
-            <Text styles = {styles.text}>difficulty: {item.difficulties}</Text>
+            <View Style = {{flexDirection: 'row', justifyContent: 'space-between'}}>
+                <Text variant="titleSmall" style = {{margin: 10}}>{index+1}. {item.name}</Text>
+                <StarRatingDisplay
+                rating={getAverageRating(item.rating)}
+                starSize={16}
+                color="gold"
+                starStyle = {{marginHorizontal: -1}}
+                /> 
 
-            <View style = {{flexDirection: 'row', justifyContent: 'space-around'}}>
-              <Text styles = {styles.text}>type: {item.type.join(", ")}</Text>
+            </View >
+
            
-          <StarRatingDisplay
-            rating={getAverageRating(item.rating)}
-            starSize={16}
-            color="gold"
-          /> 
+              
+              <View style = {{flexDirection: 'row', justifyContent: 'space-around'}}>
+              
+              <Text styles = {styles.text}>difficulty: {item.difficulties}</Text>
+              <Text styles = {styles.text}>type: {item.type.join(", ")}</Text>
           </View>
+          <Divider/>
         </TouchableOpacity>
         
       </View>
@@ -118,15 +132,15 @@ const styles = StyleSheet.create({
     margin: 5,
   },
   item: {
-    flexDirection: 'row', // <-- Makes name and type appear side-by-side
-    justifyContent: 'space-between', // optional: space out the items
-    padding: 15,
+    flexDirection: 'row', 
+    justifyContent: 'space-between', 
+    padding: 7,
     borderBottomWidth: 1,
     borderBottomColor: 'gray',
-    margin: 5,
+    margin: 3,
   },
   text: {
-    marginRight: 10, // optional: spacing between name and type
+    marginRight: 10, 
   },
 })
 
