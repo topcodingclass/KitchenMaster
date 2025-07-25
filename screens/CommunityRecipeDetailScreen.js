@@ -1,6 +1,6 @@
 import React, { useLayoutEffect, useState, useEffect, useRef } from 'react';
-import { SafeAreaView, StyleSheet, View, ScrollView } from 'react-native';
-import { Text, Button } from 'react-native-paper';
+import { SafeAreaView, StyleSheet, View, ScrollView, TouchableOpacity } from 'react-native';
+import { Text, Button, Divider } from 'react-native-paper';
 import { StarRatingDisplay } from 'react-native-star-rating-widget';
 
 const CommunityRecipeDetailScreen = ({ navigation, route }) => {
@@ -79,7 +79,7 @@ const CommunityRecipeDetailScreen = ({ navigation, route }) => {
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.content}>
         <Text style={styles.description}>{recipe.description}</Text>
-
+        <Divider/>
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Nutrition (per serving)</Text>
           <Text style={styles.listItem}>• Calories: {recipe.calories}</Text>
@@ -87,7 +87,7 @@ const CommunityRecipeDetailScreen = ({ navigation, route }) => {
           <Text style={styles.listItem}>• Protein: {recipe.protein}g</Text>
           <Text style={styles.listItem}>• Fat: {recipe.fat}g</Text>
         </View>
-
+        <Divider/>
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Ingredients</Text>
           {recipe.ingredients.map((item, index) => (
@@ -96,7 +96,7 @@ const CommunityRecipeDetailScreen = ({ navigation, route }) => {
             </Text>
           ))}
         </View>
-
+          <Divider/>
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Steps</Text>
           {recipe.steps.map((item, index) => (
@@ -104,20 +104,13 @@ const CommunityRecipeDetailScreen = ({ navigation, route }) => {
               <Text style={styles.stepText}>
                 {item.sequence}. {item.description}
               </Text>
-              <Text style={styles.timeText}>⏱ {item.time}</Text>
-              <Button
-                mode="outlined"
-                onPress={() => startStepTimer(item.time)}
-                style={styles.timerButton}
-              >
-                Start Timer
-              </Button>
+              <TouchableOpacity onPress={() => startStepTimer(item.time)}><Text style={styles.timeText}>⏱ {item.time}</Text></TouchableOpacity>
+              
             </View>
           ))}
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>🕒 Timer</Text>
           <Text style={styles.timerLabel}>{formatTime(secondsLeft)}</Text>
           <View style={styles.timerControls}>
             <Button
