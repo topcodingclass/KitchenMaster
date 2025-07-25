@@ -48,8 +48,9 @@ const FoodListScreen = ({ navigation }) => {
         style={styles.foodCard}
         onPress={() => navigation.navigate('Food Detail', { food: item })}
       >
-        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent:'space-between' }}>
           <Text style={styles.titleText}>{item.name}</Text> 
+          <Text style={styles.infoText}>Storage: {item.storage}</Text>
         </View>
 
         {item.picture ? (
@@ -60,8 +61,9 @@ const FoodListScreen = ({ navigation }) => {
           <Text style={styles.infoText}>Quantity: {item.quantity}</Text>
           <Text style={styles.infoText}>Weight: {item.weightLB}</Text>
           <Text style={styles.infoText}>Expiration: {item.expirationDate}</Text>
-          <Text style={styles.infoText}>Storage: {item.storage}</Text>
-          <Text style={styles.infoText}>Date Added: {item.scannedDate?.toDate().toDateString()}</Text>
+          
+
+          
         </View>
       </TouchableOpacity>
       <Divider />
@@ -133,7 +135,8 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     padding: 10,
-    backgroundColor: '#fff',
+    margin:7
+
   },
   foodCard: {
     paddingVertical: 12,
