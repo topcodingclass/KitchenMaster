@@ -5,9 +5,6 @@ import { collection , getDocs, addDoc } from "firebase/firestore";
 import { db } from '../firebase';
 import { StarRatingDisplay } from 'react-native-star-rating-widget';
 
-
-
-
 const CommunityRecipeScreen = ({navigation}) => {
 
   const [recipes, setRecipes] = useState([]);
@@ -71,34 +68,36 @@ useLayoutEffect(() => {
       if (ratings.length === 0) return 0;
       const total = ratings.reduce((sum, r) => sum + r.rating, 0);
       return (total / ratings.length).toFixed(1); // optional: round to 1 decimal
-};
+    };
 
     const renderItem = ({item, index}) => (
       <View >
         <TouchableOpacity style = {styles.item} onPress={() =>navigation.navigate ("CommunityRecipeDetail", {recipe:item})}>
-            <View Style = {{flexDirection: 'row', justifyContent: 'space-between'}}>
-                <Text variant="titleSmall" style = {{margin: 10}}>{index+1}. {item.name}</Text>
-                <StarRatingDisplay
+            <View style={{flexDirection:'row', justifyContent:'space-between'}}>
+              <Text variant="titleSmall">{index+1}. {item.name}</Text>
+              <StarRatingDisplay
                 rating={getAverageRating(item.rating)}
                 starSize={16}
                 color="gold"
-                starStyle = {{marginHorizontal: -1}}
-                /> 
+                starStyle={{ marginHorizontal: 2 }} // Narrow spacing
+              /> 
+            </View>            
+            <View style={{flexDirection:'row', justifyContent:'space-between', marginBottom:4}}>
+              <Text styles = {styles.text}>{item.difficulties}</Text>
+              <Text styles = {styles.text}>{item.type.join(", ")}</Text>
+          </View>
+          <Divider />
+        </TouchableOpacity>        
+      </View>
+      
+    )
+    
 
-            </View >
+            
 
            
               
-              <View style = {{flexDirection: 'row', justifyContent: 'space-around'}}>
               
-              <Text styles = {styles.text}>difficulty: {item.difficulties}</Text>
-              <Text styles = {styles.text}>type: {item.type.join(", ")}</Text>
-          </View>
-          <Divider/>
-        </TouchableOpacity>
-        
-      </View>
-    )
 
     
 
