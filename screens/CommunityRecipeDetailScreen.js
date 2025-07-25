@@ -1,11 +1,15 @@
-import React, { useLayoutEffect } from 'react';
-import {SafeAreaView, StyleSheet, View, ScrollView,} from 'react-native';
-import { Text } from 'react-native-paper';
+import React, { useLayoutEffect, useState, useEffect, useRef } from 'react';
+import { SafeAreaView, StyleSheet, View, ScrollView } from 'react-native';
+import { Text, Button } from 'react-native-paper';
 import { StarRatingDisplay } from 'react-native-star-rating-widget';
-import { Rating } from 'react-native-elements';
 
 const CommunityRecipeDetailScreen = ({ navigation, route }) => {
   const { recipe } = route.params;
+
+  // TIMER STATE
+  const [secondsLeft, setSecondsLeft] = useState(0);
+  const [isRunning, setIsRunning] = useState(false);
+  const intervalRef = useRef(null);
 
   const getAverageRating = (ratings) => {
     if (!ratings || ratings.length === 0) return 0;
@@ -22,20 +26,60 @@ const CommunityRecipeDetailScreen = ({ navigation, route }) => {
             rating={getAverageRating(recipe.rating)}
             starSize={18}
             color="gold"
-            starStyle = {{marginHorizontal: -1}}
+            starStyle={{ marginHorizontal: -1 }}
           />
         </View>
       ),
     });
   }, [navigation, recipe]);
 
+  useEffect(() => {
+    if (isRunning && secondsLeft > 0) {
+      intervalRef.current = setInterval(() => {
+        setSecondsLeft(prev => {
+          if (prev <= 1) {
+            clearInterval(intervalRef.current);
+            setIsRunning(false);
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    } else {
+      clearInterval(intervalRef.current);
+    }
+
+    return () => clearInterval(intervalRef.current);
+  }, [isRunning, secondsLeft]);
+
+  const formatTime = (totalSeconds) => {
+    const mins = String(Math.floor(totalSeconds / 60)).padStart(2, '0');
+    const secs = String(totalSeconds % 60).padStart(2, '0');
+    return `${mins}:${secs}`;
+  };
+
+  const parseStepTime = (timeStr) => {
+    const match = timeStr.match(/(\d+)\s*min/);
+    return match ? parseInt(match[1]) * 60 : 0;
+  };
+
+  const startStepTimer = (timeStr) => {
+    const duration = parseStepTime(timeStr);
+    setSecondsLeft(duration);
+    setIsRunning(true);
+  };
+
+  const handleReset = () => {
+    clearInterval(intervalRef.current);
+    setIsRunning(false);
+    setSecondsLeft(0);
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.content}>
-        
         <Text style={styles.description}>{recipe.description}</Text>
 
-       
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Nutrition (per serving)</Text>
           <Text style={styles.listItem}>• Calories: {recipe.calories}</Text>
@@ -50,11 +94,9 @@ const CommunityRecipeDetailScreen = ({ navigation, route }) => {
             <Text key={index} style={styles.listItem}>
               • {item.ingredient} - {item.quantity}
             </Text>
-
           ))}
         </View>
 
- 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Steps</Text>
           {recipe.steps.map((item, index) => (
@@ -63,8 +105,45 @@ const CommunityRecipeDetailScreen = ({ navigation, route }) => {
                 {item.sequence}. {item.description}
               </Text>
               <Text style={styles.timeText}>⏱ {item.time}</Text>
+              <Button
+                mode="outlined"
+                onPress={() => startStepTimer(item.time)}
+                style={styles.timerButton}
+              >
+                Start Timer
+              </Button>
             </View>
           ))}
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>🕒 Timer</Text>
+          <Text style={styles.timerLabel}>{formatTime(secondsLeft)}</Text>
+          <View style={styles.timerControls}>
+            <Button
+              mode="contained"
+              onPress={() => setIsRunning(true)}
+              disabled={isRunning || secondsLeft === 0}
+              style={styles.timerButton}
+            >
+              Start
+            </Button>
+            <Button
+              mode="contained"
+              onPress={() => setIsRunning(false)}
+              disabled={!isRunning}
+              style={styles.timerButton}
+            >
+              Pause
+            </Button>
+            <Button
+              mode="outlined"
+              onPress={handleReset}
+              style={styles.timerButton}
+            >
+              Reset
+            </Button>
+          </View>
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -80,11 +159,6 @@ const styles = StyleSheet.create({
   },
   content: {
     padding: 16,
-  },
-  recipeTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginBottom: 8,
   },
   description: {
     fontSize: 16,
@@ -104,7 +178,7 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   stepItem: {
-    marginBottom: 12,
+    marginBottom: 16,
   },
   stepText: {
     fontSize: 16,
@@ -113,5 +187,20 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#888',
     marginTop: 2,
+    marginBottom: 6,
+  },
+  timerLabel: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  timerControls: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  timerButton: {
+    marginHorizontal: 4,
   },
 });
