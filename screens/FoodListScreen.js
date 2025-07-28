@@ -17,15 +17,22 @@ const FoodListScreen = ({ navigation }) => {
 
 
 
-  useLayoutEffect(() => {
+    useLayoutEffect(() => {
       navigation.setOptions({
+        headerTitle: () => (
+              <View style={{ flex: 1, flexDirection: "row", alignItems:'flex-start' }}>
+                <Text variant="titleMedium">
+                  Food List
+                </Text>
+              </View>
+            ),
         headerRight: () => (
-          <TouchableOpacity onPress={() => navigation.navigate('StorageList')} style={[styles.button, { marginRight: 15 }]}>
+          <Button icon="file-cabinet" mode="elevated" onPress={() => navigation.navigate('StorageList')} style={{marginBottom:6}}>
             <Text>Storage List</Text>
-          </TouchableOpacity>
+          </Button>
         )
       });
-    }, [navigation]);
+    }, [navigation])
 
 
   useEffect(() => {
@@ -49,8 +56,8 @@ const FoodListScreen = ({ navigation }) => {
         onPress={() => navigation.navigate('Food Detail', { food: item })}
       >
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent:'space-between' }}>
-          <Text style={styles.titleText}>{item.name}</Text> 
-          <Text style={styles.infoText}>Storage: {item.storage}</Text>
+          <Text variant="titleMedium">{item.name}</Text> 
+          <Text variant="bodyMedium">Storage: {item.storage}</Text>
         </View>
 
         {item.picture ? (
@@ -58,9 +65,9 @@ const FoodListScreen = ({ navigation }) => {
         ) : null}
 
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' }}>
-          <Text style={styles.infoText}>Quantity: {item.quantity}</Text>
-          <Text style={styles.infoText}>Weight: {item.weightLB}</Text>
-          <Text style={styles.infoText}>Expiration: {item.expirationDate}</Text>
+          <Text variant="bodyMedium">Quantity: {item.quantity}</Text>
+          <Text variant="bodyMedium">Weight: {item.weightLB}</Text>
+          <Text variantariant="bodyMedium">Expiration: {item.expirationDate}</Text>
           
 
           
@@ -107,23 +114,22 @@ const FoodListScreen = ({ navigation }) => {
         renderItem={renderFoodList}
         keyExtractor={(item) => item.id}
       />
-
+<View style={{flexDirection:"row", justifyContent:'space-around'}}>
       <Button 
+        icon="camera"
         mode="contained" 
         onPress={() => navigation.navigate('FoodScan')} 
-        style={styles.button} 
-        labelStyle={styles.text}
       >
         Scan to Add
       </Button>
 
       <Button 
+      icon="plus"
         mode="contained" 
-        onPress={() => navigation.navigate('FoodManualAdd')} 
-        style={styles.button} 
-        labelStyle={styles.text}>
+        onPress={() => navigation.navigate('FoodManualAdd')} >
         Add Manually
       </Button>
+</View>
 
     </SafeAreaView>
   );
