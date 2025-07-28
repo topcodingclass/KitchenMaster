@@ -177,7 +177,7 @@ const styles = StyleSheet.create({
     marginRight: 8,
   },
   stepButton: {
-    height: 32,
+    height: 32, fontSize:12
   },
   timerContainer: {
     marginTop: 12,
