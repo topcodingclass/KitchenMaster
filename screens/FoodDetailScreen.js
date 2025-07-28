@@ -1,7 +1,7 @@
 import React, { useEffect, useLayoutEffect, useState } from 'react';
-import { TextInput, TouchableOpacity, View, StyleSheet, Modal, FlatList } from 'react-native';
-import { Text, Provider } from 'react-native-paper';
-import { doc, updateDoc, deleteDoc, addDoc, collection, getDocs, query, where } from 'firebase/firestore';
+import { TouchableOpacity, View, StyleSheet, Modal, FlatList } from 'react-native';
+import { TextInput,Text, Provider, Button } from 'react-native-paper';
+import { doc, updateDoc, deleteDoc, addDoc, collection, getDocs, query, where, Timestamp } from 'firebase/firestore';
 import { db } from '../firebase';
 
 const FoodDetailScreen = ({ route, navigation }) => {
@@ -18,31 +18,23 @@ const FoodDetailScreen = ({ route, navigation }) => {
   const [modalVisible, setModalVisible] = useState(false);
 
   useLayoutEffect(() => {
-  const formattedDate = food.scannedDate?.toDate
-    ? food.scannedDate.toDate().toLocaleDateString()
-    : '';
+    const formattedDate = food.scannedDate?.toDate
+      ? food.scannedDate.toDate().toLocaleDateString()
+      : '';
 
-  navigation.setOptions({
-    headerTitle: () => (
-      <View style={{ flexDirection: 'column', alignItems: 'center' }}>
-        <Text style={{ fontSize: 16, fontWeight: 'bold', color: 'black' }}>
-          Food Detail
-        </Text>
-        {formattedDate !== '' && (
-          <Text style={{ fontSize: 12, color: 'gray' }}>{formattedDate}</Text>
-        )}
-      </View>
-    ),
-    headerRight: () => (
-      <TouchableOpacity
-        onPress={() => navigation.navigate('StorageList')}
-        style={[styles.button, { marginRight: 10 }]}
-      >
-        <Text style={{ color: 'white', fontWeight: '600' }}>Storage List</Text>
-      </TouchableOpacity>
-    ),
-  });
-}, [navigation, food]);
+    navigation.setOptions({
+      headerTitle: () => (
+        <View style={{ flexDirection: 'column', alignItems: 'center' }}>
+          <Text style={{ fontSize: 13, fontWeight: 'bold', color: 'black' }}>
+            {name}
+          </Text>
+          {formattedDate !== '' && (
+            <Text style={{ fontSize: 12, color: 'gray' }}>{formattedDate}</Text>
+          )}
+        </View>
+      ),
+    });
+  }, [navigation, food, name]);
 
   const fetchStorages = async () => {
     try {
@@ -71,7 +63,6 @@ const FoodDetailScreen = ({ route, navigation }) => {
         weightLB: weightLB ? Number(weightLB) : null,
         storage,
         scannedDate: Timestamp.fromDate(new Date()),
-
       });
     } catch (e) {
       console.log(e.message);
@@ -79,18 +70,19 @@ const FoodDetailScreen = ({ route, navigation }) => {
   };
 
   const deleteFood = async () => {
-  try {
-    await deleteDoc(doc(db, "foods", food.id));
-    navigation.goBack();
-  } catch (e) {
-    console.log(e.message);
-  }
-};
+    try {
+      await deleteDoc(doc(db, "foods", food.id));
+      navigation.goBack();
+    } catch (e) {
+      console.log(e.message);
+    }
+  };
 
   const addStorage = async () => {
     try {
-      await addDoc(collection(db, 'storages'), { name: storageID });
-      setStorages([...storages, { label: storageID, value: storageID }]);
+      if (storageID.trim() === '') return;
+      await addDoc(collection(db, 'storages'), { name: storageID.trim() });
+      setStorages([...storages, { label: storageID.trim(), value: storageID.trim() }]);
       setStorageID('');
     } catch (e) {
       console.error('Error adding document: ', e);
@@ -113,38 +105,29 @@ const FoodDetailScreen = ({ route, navigation }) => {
   return (
     <Provider>
       <View style={styles.container}>
-        <Text variant="titleMedium" style={{ color: 'black' }}>Name: </Text>
-        <TextInput value={name} onChangeText={setName} style={styles.input} />
+        <TextInput label="Name"value={name} onChangeText={setName} mode = "outlined" style={{marginTop:12}} />
 
-        <Text variant="titleMedium"style={{ color: 'black' }}>Quantity: </Text>
-        <TextInput value={quantity} onChangeText={setQuantity} style={styles.input} />
+        <TextInput label="Quantity"value={quantity} onChangeText={setQuantity} mode = "outlined" style={{marginTop:12}} />
 
-        <Text variant="titleMedium"style={{ color: 'black' }}>Expiration Date: </Text>
-        <TextInput value={expirationDate} onChangeText={setExpirationDate} style={styles.input} />
+        <TextInput label="Expiration Date"value={expirationDate} onChangeText={setExpirationDate}  mode = "outlined" style={{marginTop:12}} />
 
-        <Text variant="titleMedium"style={{ color: 'black' }}>Type: </Text>
-        <TextInput value={type} onChangeText={setType} style={styles.input} />
+        <TextInput label="Type"value={type} onChangeText={setType}  mode = "outlined" style={{marginTop:12}} />
 
-        <Text variant="titleMedium"style={{ color: 'black' }}>Weight in Pounds: </Text>
-        <TextInput value={weightLB} onChangeText={setWeightLB} style={styles.input} />
+        <TextInput label="Weight in Pounds:"value={weightLB} onChangeText={setWeightLB}  mode = "outlined" style={{marginTop:12}} />
 
-        <Text variant="titleMedium"style={{ color: 'black' }}>Storage: {storage}</Text>
-        <TouchableOpacity style={styles.button} onPress={() => setModalVisible(true)}>
-          <Text style={styles.text}>Select Storage</Text>
-        </TouchableOpacity>
+        <Text variant="titleMedium">Storage:</Text>
+        <Text variant="titleSmall" style={{ marginLeft:60, marginBottom:10 }}>{storage}</Text>
 
-        <TouchableOpacity style={styles.button} onPress={saveFood}>
-          <Text style={styles.text}>Save</Text>
-        </TouchableOpacity>
 
-        <TouchableOpacity style={styles.deleteButton} onPress={deleteFood}>
-          <Text style={styles.text}>Delete</Text>
-        </TouchableOpacity>
+        <Button icon ="file-cabinet"mode="contained-tonal" onPress={() => setModalVisible(true)}>
+          Select Storage
+        </Button>
+        
 
         <Modal visible={modalVisible} transparent animationType="slide">
           <View style={styles.modalBackground}>
             <View style={styles.modalContainer}>
-              <Text style={{ color: 'black' }}>Select Existing Storage</Text>
+              <Text variant="titleMedium">Select Existing Storage</Text>
               <FlatList
                 data={storages}
                 keyExtractor={(item) => item.value}
@@ -168,21 +151,43 @@ const FoodDetailScreen = ({ route, navigation }) => {
                   </View>
                 )}
               />
+
+<View style = {{flexDirection:'row',justifyContent:'space-between',marginTop:55,alignItems:"center"}}>
               <TextInput
                 placeholder="New Storage Name"
                 value={storageID}
                 onChangeText={setStorageID}
-                style={styles.input}
+                mode="outlined"
+                style={{flex:1,marginRight:10}}
               />
-              <TouchableOpacity style={styles.button} onPress={addStorage}>
-                <Text style={styles.text}>Add Storage</Text>
-              </TouchableOpacity>
+              
+              <Button icon = "archive-plus-outline"mode = "contained-tonal" onPress={addStorage}>
+                Add Storage
+              </Button>
+
+</View>
+
+              
+              
+
+
               <TouchableOpacity style={styles.button} onPress={() => setModalVisible(false)}>
                 <Text style={styles.text}>Close</Text>
               </TouchableOpacity>
             </View>
           </View>
         </Modal>
+        
+        
+        <View style={styles.bottomButtons}>
+          <Button mode="contained" onPress={saveFood} style={styles.actionButton}>
+            Save
+          </Button>
+          <Button mode="contained" onPress={deleteFood} style={styles.actionButton}>
+            Delete
+          </Button>
+        </View>
+
       </View>
     </Provider>
   );
@@ -193,14 +198,13 @@ export default FoodDetailScreen;
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 10,  
+    padding: 10,
     backgroundColor: '#fff',
   },
   input: {
     backgroundColor: 'white',
     padding: 12,
-    marginVertical: 8,    
-    marginHorizontal: 0, 
+    marginVertical: 8,
     borderRadius: 6,
     borderWidth: 1,
     borderColor: '#ccc',
@@ -210,18 +214,11 @@ const styles = StyleSheet.create({
     padding: 14,
     borderRadius: 10,
     marginVertical: 10,
-    marginHorizontal: 0,  
   },
   text: {
     textAlign: 'center',
-    color: 'white',   
+    color: 'white',
     fontWeight: '600',
-  },
-  titleText: {
-    fontWeight: '700',
-    fontSize: 16,
-    color: '#000',
-    marginVertical: 8,
   },
   modalBackground: {
     flex: 1,
@@ -242,14 +239,16 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderColor: '#eee',
   },
-  selectButton: {
-    flex: 1,
-    paddingLeft: 10,
-  },
-  deleteButton: {
-    backgroundColor: 'red',
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-
-  },
+  bottomButtons: {
+  position: 'absolute',
+  bottom: 40,
+  left: 20,
+  right: 20,
+  flexDirection: 'row',
+  justifyContent: 'space-between',
+},
+actionButton: {
+  flex: 1,
+  marginHorizontal: 5,
+},
 });
