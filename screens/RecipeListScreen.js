@@ -1,6 +1,6 @@
 // RecipeListScreen.js
 import React, { useState } from 'react';
-import { View, FlatList, StyleSheet, Alert } from 'react-native';
+import { View, FlatList, StyleSheet, Alert, ActivityIndicator } from 'react-native';
 import { Text, Button, Card, Title, Paragraph, Divider } from 'react-native-paper';
 import { collection, getDocs } from 'firebase/firestore';
 import { db } from '../firebase';
@@ -8,7 +8,9 @@ import OpenAI from 'openai';
 
 const RecipeListScreen = ({ navigation }) => {
   const [recipes, setRecipes] = useState([]);
-  
+  const [loading, setLoading] = useState(false);
+  const [hasGenerated, setHasGenerated] = useState(false); 
+
   const fetchUserFoods = async () => {
     try {
       const snapshot = await getDocs(collection(db, "foods"));
@@ -20,7 +22,7 @@ const RecipeListScreen = ({ navigation }) => {
   };
 
   const client = new OpenAI({
-    apiKey: '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', // Replace with secure key
+    apiKey: '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', 
     dangerouslyAllowBrowser: true,
   });
 
@@ -29,7 +31,7 @@ const RecipeListScreen = ({ navigation }) => {
       const prompt = `
         You are a helpful recipe generator.
         Only use the following ingredients: ${foods.join(", ")}.
-        Generate 3 recipes in JavaScript array format, like this:
+        Generate 5 recipes in JavaScript array format, like this:
         [
           {
             name: "Recipe Name",
@@ -69,7 +71,13 @@ const RecipeListScreen = ({ navigation }) => {
       Alert.alert("No ingredients", "Please add ingredients before generating recipes.");
       return;
     }
-    await getRecipesFromAI(foods);
+    try {
+      setLoading(true);
+      await getRecipesFromAI(foods);
+      setHasGenerated(true); 
+    } finally {
+      setLoading(false);
+    }
   };
 
   const displayRecipe = ({ item }) => (
@@ -86,9 +94,20 @@ const RecipeListScreen = ({ navigation }) => {
 
   const renderHeader = () => (
     <>
-      <Button mode="contained" onPress={generateRecipe} style={styles.button}>
-        Generate Recipes
+      <Button 
+        mode="contained" 
+        onPress={generateRecipe} 
+        disabled={loading}
+        style={styles.button}
+      >
+        {loading ? 'Generating...' : hasGenerated ? 'Generate More' : 'Generate Recipes'}
       </Button>
+      {loading && (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#6200ee" />
+          <Text style={styles.loadingText}>Please wait while we generate your recipes...</Text>
+        </View>
+      )}
       <Divider style={styles.divider} />
     </>
   );
@@ -109,20 +128,34 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     flex: 1,
     paddingHorizontal: 16,
-    paddingTop: 40,},
+    paddingTop: 40,
+  },
   button: {
-    marginBottom: 16,},
+    marginBottom: 16,
+  },
   card: {
     marginBottom: 12,
     backgroundColor: '#f8f9fa',
     borderRadius: 12,
-    elevation: 2,},
+    elevation: 2,
+  },
   recipeName: {
     fontSize: 18,
     fontWeight: 'bold',
-    marginBottom: 4,},
+    marginBottom: 4,
+  },
   divider: {
-    marginBottom: 16,},
+    marginBottom: 16,
+  },
+  loadingContainer: {
+    marginVertical: 16,
+    alignItems: 'center',
+  },
+  loadingText: {
+    marginTop: 8,
+    fontSize: 14,
+    color: '#666',
+  },
 });
 
 export default RecipeListScreen;
