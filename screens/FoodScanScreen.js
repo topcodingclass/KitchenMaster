@@ -1,7 +1,7 @@
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { useRef, useState } from 'react';
-import { Image, StyleSheet, TouchableOpacity, View } from 'react-native';
-import { Button, Text } from 'react-native-paper';
+import { Image, StyleSheet, View } from 'react-native';
+import { Button, Text, ActivityIndicator } from 'react-native-paper';
 import axios from 'axios';
 
 export default function FoodScanScreen({ navigation }) {
@@ -16,9 +16,13 @@ export default function FoodScanScreen({ navigation }) {
   if (!permission) return <View />;
   if (!permission.granted) {
     return (
-      <View style={styles.container}>
-        <Text style={styles.message}>We need your permission to show the camera</Text>
-        <Button onPress={requestPermission}>Grant Permission</Button>
+      <View style={styles.permissionContainer}>
+        <Text variant="bodyMedium" style={styles.message}>
+          We need your permission to show the camera
+        </Text>
+        <Button mode="contained" onPress={requestPermission} style={styles.permissionButton}>
+          Grant Permission
+        </Button>
       </View>
     );
   }
@@ -28,6 +32,7 @@ export default function FoodScanScreen({ navigation }) {
       const photo = await cameraRef.current.takePictureAsync({ base64: true });
       setPhotoUri(photo.uri);
       setPhotoBase64(photo.base64);
+      setResult('');
     }
   }
 
@@ -65,10 +70,7 @@ export default function FoodScanScreen({ navigation }) {
 
       const text = response.data.choices[0].message.content;
       setResult(text);
-      console.log(text)
-      
       navigation.navigate('FoodScanResult', { result: text });
-
     } catch (error) {
       console.error('OpenAI error:', error.response?.data || error.message);
       setResult('Failed to identify the food.');
@@ -81,23 +83,29 @@ export default function FoodScanScreen({ navigation }) {
     <View style={styles.container}>
       <CameraView style={styles.camera} facing={facing} ref={cameraRef} />
 
-      <View style={styles.buttonContainer}>
-        <TouchableOpacity style={styles.button} onPress={takePicture}>
-          <Text style={styles.text}>{photoUri ? 'Retake Picture' : 'Take Picture'}</Text>
-        </TouchableOpacity>
+      <View style={styles.buttonsRow}>
+        <Button mode="contained" onPress={takePicture} style={styles.button}>
+          {photoUri ? 'Retake Picture' : 'Take Picture'}
+        </Button>
 
         {photoUri && (
-          <TouchableOpacity style={styles.button} onPress={() => sendToOpenAI(photoBase64)}>
-            <Text style={styles.text}>Ask GPT</Text>
-          </TouchableOpacity>
+          <Button
+            mode="contained-tonal"
+            onPress={() => sendToOpenAI(photoBase64)}
+            style={styles.button}
+            loading={loading}
+            disabled={loading}
+          >
+            Ask GPT
+          </Button>
         )}
       </View>
 
       {photoUri && (
-        <View>
-          <Image source={{ uri: photoUri }} style={{ width: '100%', height: 300 }} />
-          {loading && <Text style={styles.message}>Loading...</Text>}
-        </View>
+        <>
+          <Image source={{ uri: photoUri }} style={styles.previewImage} />
+          {loading && <ActivityIndicator animating={true} size="large" style={{ marginTop: 10 }} />}
+        </>
       )}
     </View>
   );
@@ -106,31 +114,34 @@ export default function FoodScanScreen({ navigation }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+
+  },
+  permissionContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
   },
   message: {
-    textAlign: 'center',
-    padding: 10,
-    fontSize: 16,
+    marginBottom: 16,
+  },
+  permissionButton: {
+    width: 160,
   },
   camera: {
     flex: 1,
   },
-  buttonContainer: {
-    position: 'absolute',
-    bottom: 40,
-    width: '100%',
+  buttonsRow: {
     flexDirection: 'row',
     justifyContent: 'space-around',
-    zIndex: 10,
+    paddingVertical: 20,
+
   },
   button: {
-    backgroundColor: 'rgb(170, 189, 174)',
-    padding: 15,
-    borderRadius: 10,
-    margin: 16,
+    minWidth: 140,
   },
-  text: {
-    fontSize: 18,
-    color: 'black',
+  previewImage: {
+    width: '100%',
+    height: 300,
   },
 });
