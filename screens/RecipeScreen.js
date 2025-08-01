@@ -18,7 +18,7 @@ const RecipeScreen = ({ navigation, route }) => {
     });
   }, [navigation, recipe]);
 
-//timer code
+  // Timer logic
   useEffect(() => {
     if (isRunning && secondsLeft > 0) {
       intervalRef.current = setInterval(() => {
@@ -76,16 +76,14 @@ const RecipeScreen = ({ navigation, route }) => {
           <Paragraph style={styles.sectionTitle}>👣 Steps</Paragraph>
           {steps.map((step, index) => (
             <View key={index} style={styles.stepRow}>
-              <Paragraph style={styles.stepText}>
-                {step.sequence}. {step.description} ({step.time})
-              </Paragraph>
-              <Button
-                mode="outlined"
-                onPress={() => startStepTimer(step.time)}
-                style={styles.stepButton}
-              >
-                Start Timer
-              </Button>
+              <View style={{ flex: 1 }}>
+                <Paragraph style={styles.stepText}>
+                  {step.sequence}. {step.description} ({step.time})
+                </Paragraph>
+                <Text style={styles.startTimerText} onPress={() => startStepTimer(step.time)}>
+                  ⏱ Start timer for {step.time}
+                </Text>
+              </View>
             </View>
           ))}
 
@@ -168,16 +166,18 @@ const styles = StyleSheet.create({
   },
   stepRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8,
+    alignItems: 'flex-start',
+    marginBottom: 12,
   },
   stepText: {
     flex: 1,
     marginRight: 8,
   },
-  stepButton: {
-    height: 32, fontSize:12
+  startTimerText: {
+    color: '#737373ff',
+    marginTop: 4,
+    marginLeft: 12,
+    textDecorationLine: 'underline',
   },
   timerContainer: {
     marginTop: 12,
