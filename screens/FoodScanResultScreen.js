@@ -1,40 +1,45 @@
-import { useState, useEffect } from 'react';
-import { StyleSheet, TouchableOpacity, View, Modal, FlatList } from 'react-native';
-import { Text, TextInput, Provider } from 'react-native-paper';
-import { collection, addDoc, getDocs, deleteDoc, doc, query, where, Timestamp } from "firebase/firestore"; 
+import React, { useEffect, useState } from 'react';
+import { View, StyleSheet, Modal, FlatList, TouchableOpacity } from 'react-native';
+import { TextInput, Text, Button, Provider } from 'react-native-paper';
+import { addDoc, collection, getDocs, query, where, deleteDoc, Timestamp } from 'firebase/firestore';
 import { db } from '../firebase';
 
-const FoodScanResultScreen = ({ route, navigation }) => {
-  const { result } = route.params;
-  const [modalVisible, setModalVisible] = useState(false);
-  const [storages, setStorages] = useState([]);
+const FoodManualAddScreen = ({ navigation }) => {
+  const [name, setName] = useState('');
+  const [quantity, setQuantity] = useState('');
+  const [expirationDate, setExpirationDate] = useState('');
+  const [type, setType] = useState('');
+  const [weightLB, setWeightLB] = useState('');
+  const [storage, setStorage] = useState('');
   const [storageID, setStorageID] = useState('');
-  const [selectedStorage, setSelectedStorage] = useState('');
+  const [storages, setStorages] = useState([]);
+  const [modalVisible, setModalVisible] = useState(false);
+
+  const fetchStorages = async () => {
+    try {
+      const querySnapshot = await getDocs(collection(db, 'storages'));
+      const loadedStorages = querySnapshot.docs.map((doc) => {
+        const data = doc.data();
+        return { label: data.name, value: data.name };
+      });
+      setStorages(loadedStorages);
+    } catch (e) {
+      console.error('Error fetching storages: ', e);
+    }
+  };
 
   useEffect(() => {
     fetchStorages();
   }, []);
 
-  const fetchStorages = async () => {
-    try {
-      const snapshot = await getDocs(collection(db, 'storages'));
-      const storageList = snapshot.docs.map(doc => ({
-        label: doc.data().name,
-        value: doc.data().name,
-      }));
-      setStorages(storageList);
-    } catch (e) {
-      console.error('Error fetching storages:', e);
-    }
-  };
-
   const addStorage = async () => {
     try {
-      await addDoc(collection(db, 'storages'), { name: storageID });
-      setStorages([...storages, { label: storageID, value: storageID }]);
+      if (storageID.trim() === '') return;
+      await addDoc(collection(db, 'storages'), { name: storageID.trim() });
+      setStorages([...storages, { label: storageID.trim(), value: storageID.trim() }]);
       setStorageID('');
     } catch (e) {
-      console.error('Error adding storage:', e);
+      console.error('Error adding document: ', e);
     }
   };
 
@@ -43,50 +48,52 @@ const FoodScanResultScreen = ({ route, navigation }) => {
       const q = query(collection(db, 'storages'), where('name', '==', storageName));
       const snapshot = await getDocs(q);
       snapshot.forEach(async (docItem) => {
-        await deleteDoc(doc(db, 'storages', docItem.id));
+        await deleteDoc(docItem.ref);
       });
-      setStorages(storages.filter(item => item.value !== storageName));
+      setStorages(storages.filter((item) => item.value !== storageName));
     } catch (e) {
-      console.error('Error deleting storage:', e);
+      console.error('Error deleting storage: ', e);
     }
   };
 
-  const saveFood = async () => {
+  const addFood = async () => {
     try {
-      const foodData = JSON.parse(result);
       await addDoc(collection(db, 'foods'), {
-        ...foodData,
-        storage: selectedStorage,
-        scannedDate: Timestamp.fromDate(new Date())
+        name,
+        quantity: Number(quantity),
+        expirationDate,
+        type,
+        weightLB: weightLB ? Number(weightLB) : null,
+        storage,
+        scannedDate: Timestamp.fromDate(new Date()),
       });
-      navigation.navigate('FoodList');
+      navigation.navigate('Food List');
     } catch (e) {
-      console.error('Error saving food:', e.message);
+      console.error('Error adding food: ', e);
     }
   };
 
   return (
     <Provider>
       <View style={styles.container}>
-        <Text style={styles.titleText}>Food Details</Text>
-        <Text style={styles.input}>{result}</Text>
+        <TextInput label="Name" value={name} onChangeText={setName} mode="outlined" style={{ marginTop: 12 }} />
+        <TextInput label="Quantity" value={quantity} onChangeText={setQuantity} mode="outlined" style={{ marginTop: 12 }} />
+        <TextInput label="Expiration Date" value={expirationDate} onChangeText={setExpirationDate} mode="outlined" style={{ marginTop: 12 }} />
+        <TextInput label="Type" value={type} onChangeText={setType} mode="outlined" style={{ marginTop: 12 }} />
+        <TextInput label="Weight in Pounds:" value={weightLB} onChangeText={setWeightLB} mode="outlined" style={{ marginTop: 12 }} />
 
-        <TouchableOpacity style={styles.button} onPress={() => setModalVisible(true)}>
-          <Text style={styles.text}>Select Storage</Text>
-        </TouchableOpacity>
+        <Text variant="titleMedium">Storage:</Text>
+        <Text variant="titleSmall" style={{ marginLeft: 60, marginBottom: 10 }}>{storage}</Text>
 
-        <TouchableOpacity style={styles.button} onPress={saveFood}>
-          <Text style={styles.text}>Save Food</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.button} onPress={() => navigation.navigate('FoodScan')}>
-          <Text style={styles.text}>Retake</Text>
-        </TouchableOpacity>
+        <Button icon="file-cabinet" mode="contained-tonal" onPress={() => setModalVisible(true)}>
+          Select Storage
+        </Button>
 
         <Modal visible={modalVisible} transparent animationType="slide">
           <View style={styles.modalBackground}>
             <View style={styles.modalContainer}>
-              <Text style={styles.titleText}>Select Existing Storage</Text>
+              <Text variant="titleMedium">Select Existing Storage</Text>
+
               <FlatList
                 data={storages}
                 keyExtractor={(item) => item.value}
@@ -95,7 +102,7 @@ const FoodScanResultScreen = ({ route, navigation }) => {
                     <TouchableOpacity
                       style={styles.selectButton}
                       onPress={() => {
-                        setSelectedStorage(item.value);
+                        setStorage(item.value);
                         setModalVisible(false);
                       }}
                     >
@@ -111,60 +118,41 @@ const FoodScanResultScreen = ({ route, navigation }) => {
                 )}
               />
 
-              <TextInput
-                placeholder="New Storage Name"
-                value={storageID}
-                onChangeText={setStorageID}
-                style={styles.input}
-              />
-              <TouchableOpacity style={styles.button} onPress={addStorage}>
-                <Text style={styles.text}>Add Storage</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.button} onPress={() => setModalVisible(false)}>
-                <Text style={styles.text}>Close</Text>
-              </TouchableOpacity>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 20, alignItems: 'center', marginBottom: 20 }}>
+                <TextInput
+                  placeholder="New Storage Name"
+                  value={storageID}
+                  onChangeText={setStorageID}
+                  mode="outlined"
+                  style={{ flex: 1, marginRight: 10 }}
+                />
+                <Button icon="archive-plus-outline" mode="contained-tonal" onPress={addStorage}>
+                  Add Storage
+                </Button>
+              </View>
+
+              <Button mode="contained" style={styles.closeButton} onPress={() => setModalVisible(false)}>
+                Close
+              </Button>
             </View>
           </View>
         </Modal>
+
+        <Button mode="contained" style={{ marginTop: 30 }} onPress={addFood}>
+          Add Food
+        </Button>
       </View>
     </Provider>
   );
 };
 
-export default FoodScanResultScreen;
+export default FoodManualAddScreen;
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 10,  
-    backgroundColor: '#fff',
-  },
-  input: {
-    backgroundColor: 'white',
-    padding: 12,
-    marginVertical: 8,    
-    marginHorizontal: 0, 
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: '#ccc',
-  },
-  button: {
-    backgroundColor: 'rgb(124, 177, 255)',
-    padding: 14,
-    borderRadius: 10,
-    marginVertical: 10,
-    marginHorizontal: 0,  
-  },
-  text: {
-    textAlign: 'center',
-    color: 'white',   
-    fontWeight: '600',
-  },
-  titleText: {
-    fontWeight: '700',
-    fontSize: 16,
-    color: '#000',
-    marginVertical: 8,
+    padding: 10,
+    margin: 7,
   },
   modalBackground: {
     flex: 1,
@@ -187,11 +175,14 @@ const styles = StyleSheet.create({
   },
   selectButton: {
     flex: 1,
-    paddingLeft: 10,
   },
   deleteButton: {
     backgroundColor: 'red',
-    paddingVertical: 6,
     paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 4,
+  },
+  closeButton: {
+    marginTop: 20,
   },
 });
