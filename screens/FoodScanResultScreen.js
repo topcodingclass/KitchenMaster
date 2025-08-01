@@ -70,11 +70,9 @@ const FoodScanResultScreen = ({ route, navigation }) => {
       <View style={styles.container}>
         <Text variant="titleMedium" style={{ marginBottom: 12 }}>Food Details</Text>
         
-        <Card style={{ marginBottom: 12 }}>
-          <Card.Content>
+
             <Text variant="bodyMedium">{result}</Text>
-          </Card.Content>
-        </Card>
+
 
         <Button mode="contained-tonal" icon="file-cabinet" style={styles.button} onPress={() => setModalVisible(true)}>
           Select Storage
