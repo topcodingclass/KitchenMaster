@@ -38,19 +38,6 @@ const FoodScanResultScreen = ({ route, navigation }) => {
     }
   };
 
-  const deleteStorage = async (storageName) => {
-    try {
-      const q = query(collection(db, 'storages'), where('name', '==', storageName));
-      const snapshot = await getDocs(q);
-      snapshot.forEach(async (docItem) => {
-        await deleteDoc(doc(db, 'storages', docItem.id));
-      });
-      setStorages(storages.filter(item => item.value !== storageName));
-    } catch (e) {
-      console.error('Error deleting storage:', e);
-    }
-  };
-
   const saveFood = async () => {
     try {
       const foodData = JSON.parse(result);
@@ -104,9 +91,6 @@ const FoodScanResultScreen = ({ route, navigation }) => {
                     >
                       <Text variant="bodyLarge">{item.label}</Text>
                     </TouchableOpacity>
-                    <Button mode="contained" buttonColor="red" onPress={() => deleteStorage(item.value)}>
-                      Delete
-                    </Button>
                   </View>
                 )}
               />
