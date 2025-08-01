@@ -183,7 +183,6 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 0,
     borderBottomWidth: 1,
-    borderColor: '#ccc',
   },
   modalBackground: {
     flex: 1,
@@ -202,7 +201,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 10,
     borderBottomWidth: 1,
-    borderColor: '#eee',
   },
   closeButton: {
     marginTop: 20
