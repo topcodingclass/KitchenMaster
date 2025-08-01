@@ -83,7 +83,7 @@ const RecipeListScreen = ({ navigation }) => {
   const displayRecipe = ({ item }) => (
     <Card style={styles.card} onPress={() => navigation.navigate('RecipeScreen', { recipe: item })}>
       <Card.Content>
-        <Title style={styles.recipeName}>{item.name}</Title>
+        <Text variant="titleMedium">{item.name}</Text>
         <Paragraph>🍽 Type: {item.type}</Paragraph>
         <Paragraph>⏱ Time: {item.totalTime}</Paragraph>
         <Paragraph>🔥 Difficulty: {item.difficulty}</Paragraph>
@@ -105,7 +105,7 @@ const RecipeListScreen = ({ navigation }) => {
       {loading && (
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#6200ee" />
-          <Text style={styles.loadingText}>Please wait while we generate your recipes...</Text>
+          <Text style={styles.loadingText}>Please wait. AI is currently generating your recipes</Text>
         </View>
       )}
       <Divider style={styles.divider} />
@@ -134,9 +134,9 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   card: {
-    marginBottom: 12,
+    marginBottom: 10,
     backgroundColor: '#f8f9fa',
-    borderRadius: 12,
+    borderRadius: 10,
     elevation: 2,
   },
   recipeName: {
@@ -145,7 +145,7 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   divider: {
-    marginBottom: 16,
+    marginBottom: 12,
   },
   loadingContainer: {
     marginVertical: 16,
