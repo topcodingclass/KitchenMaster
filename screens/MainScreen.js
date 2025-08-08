@@ -2,7 +2,7 @@ import React from 'react';
 import { View, StyleSheet, Image, TouchableOpacity } from 'react-native';
 import { Text, Card, IconButton } from 'react-native-paper';
 
-const HomeScreen = () => {
+const MainScreen = () => {
   const navigateToGenerate = () => {
     console.log('Generate recipe pressed');
   };
@@ -61,7 +61,7 @@ const HomeScreen = () => {
   );
 };
 
-export default HomeScreen;
+export default MainScreen;
 
 const styles = StyleSheet.create({
   container: {
