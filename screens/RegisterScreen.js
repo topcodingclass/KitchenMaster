@@ -10,11 +10,12 @@ import {collection, setDoc, doc, getDocs } from "firebase/firestore";
 const RegisterScreen = ({navigation}) => {
     const [name, setName] = useState("")
     const [email, setEmail] = useState("")
-    const [phone, setPhone] = useState("")
+    const [weight, setWeight] = useState("")
     const [password, setPassword] = useState("")
-    const [address, setAddress] = useState("")
+    const [yob, setYob] = useState("")
     const [city, setCity] = useState("")
     const [zip, setZip] = useState("")
+    const [height, setHeight] = useState("")
 
     
     const signUp = async () => {
@@ -39,8 +40,10 @@ const RegisterScreen = ({navigation}) => {
         await setDoc(doc(db, "users", userId), {
             name,
             email,
-            phone,
-            address,
+            weight,
+            height,
+            yob,
+            password,
             city,
             zip
           });
@@ -58,10 +61,13 @@ const RegisterScreen = ({navigation}) => {
       <TextInput style={styles.input} label="Email" value={email} onChangeText={setEmail} autoCapitalize='none'/>
       <TextInput style={styles.input} label="Password" value={password} onChangeText={setPassword} secureTextEntry autoCapitalize='none'/>
       <TextInput style={styles.input} label="Name" value={name} onChangeText={setName} />
-      <TextInput style={styles.input} label="Address" value={address} onChangeText={setAddress} />     
+      <TextInput style={styles.input} label="Year Of Birth" value={yob} onChangeText={setYob} />     
       <TextInput style={styles.input} label="City" value={city} onChangeText={setCity} /> 
       <TextInput style={styles.input} label="Zip" value={zip} onChangeText={setZip} /> 
-      <TextInput style={styles.input} label="Phone" value={phone} onChangeText={setPhone} />
+      <TextInput style={styles.input} label="Weight" value={weight} onChangeText={setWeight} />
+      <TextInput style={styles.input} label="Height" value={height} onChangeText={setHeight} />
+
+
       
       <View style={{marginTop:30, marginHorizontal:20}}>
       <Button icon="clipboard-account-outline" mode="contained" onPress={signUp}>
