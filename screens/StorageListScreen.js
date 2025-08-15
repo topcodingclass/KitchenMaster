@@ -7,7 +7,7 @@ import { db } from '../firebase';
 const StorageListScreen = ({ navigation }) => {
   const [storages, setStorages] = useState([]);
   const [modalVisible, setModalVisible] = useState(false);
-  const [storageID, setStorageID] = useState('');
+  const [storageNameInput, setStorageNameInput] = useState('');
   const [editingId, setEditingId] = useState(null);
   const [editName, setEditName] = useState('');
 
@@ -19,7 +19,7 @@ const StorageListScreen = ({ navigation }) => {
         </View>
       ),
       headerRight: () => (
-        <Button mode="elevated" onPress={() => navigation.navigate('Food List')} style={{ marginBottom: 6 }}>
+        <Button icon="fridge" mode="elevated" onPress={() => navigation.navigate('Food List')} style={{ marginBottom: 6 }}>
           Food List
         </Button>
       )
@@ -28,11 +28,20 @@ const StorageListScreen = ({ navigation }) => {
 
   const fetchStorages = async () => {
     try {
-      const querySnapshot = await getDocs(collection(db, "storages"));
-      const loadedStorages = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      setStorages(loadedStorages);
+      const storageSnap = await getDocs(collection(db, "storages"));
+      const loadedStorages = storageSnap.docs.map(doc => ({ id: doc.id, ...doc.data(), itemCount: 0 }));
+
+      const foodSnap = await getDocs(collection(db, "foods"));
+      const foods = foodSnap.docs.map(doc => doc.data());
+
+      const storagesWithCounts = loadedStorages.map(storage => {
+        const count = foods.filter(food => food.storage === storage.name).length;
+        return { ...storage, itemCount: count };
+      });
+
+      setStorages(storagesWithCounts);
     } catch (e) {
-      console.error("Error fetching storages: ", e);
+      console.error("Error fetching storages or foods: ", e);
     }
   };
 
@@ -42,11 +51,11 @@ const StorageListScreen = ({ navigation }) => {
 
   const addStorage = async () => {
     try {
-      const name = storageID.trim();
+      const name = storageNameInput.trim();
       if (!name) return;
       await addDoc(collection(db, 'storages'), { name });
       fetchStorages();
-      setStorageID('');
+      setStorageNameInput('');
     } catch (e) {
       console.error('Error adding storage: ', e);
     }
@@ -80,7 +89,7 @@ const StorageListScreen = ({ navigation }) => {
     }
   };
 
-  const renderStorageItem = ({ item }) => (
+  const renderStorageItemInPopup = ({ item }) => (
     <View style={styles.storageRow}>
       {editingId === item.id ? (
         <>
@@ -95,26 +104,46 @@ const StorageListScreen = ({ navigation }) => {
           </Button>
         </>
       ) : (
-        <>
+        <View style={{ flex: 1 }}>
           <Text variant="bodyLarge">{item.name}</Text>
-          <View style={{ flexDirection: 'row' }}>
-            <Button
-              mode="contained-tonal"
-              style={{ marginRight: 8 }}
-              onPress={() => startEdit(item)}
-            >
-              Edit
-            </Button>
-            <Button
-              mode="contained"
-              buttonColor="red"
-              onPress={() => deleteStorage(item.name)}
-            >
-              Delete
-            </Button>
-          </View>
-        </>
+          <Text variant="bodySmall" style={{ color: 'gray' }}>
+            {item.itemCount} {item.itemCount === 1 ? 'item' : 'items'}
+          </Text>
+        </View>
       )}
+      {editingId !== item.id && (
+        <View style={{ flexDirection: 'row' }}>
+          <Button
+            mode="contained-tonal"
+            style={{ marginRight: 8 }}
+            onPress={() => startEdit(item)}
+          >
+            Edit
+          </Button>
+          <Button
+            mode="contained"
+            buttonColor="red"
+            onPress={() => deleteStorage(item.name)}
+          >
+            Delete
+          </Button>
+        </View>
+      )}
+    </View>
+  );
+
+  const renderStorageItemInMainList = ({ item }) => (
+    <View>
+      <TouchableOpacity
+        style={styles.storageCard}
+        onPress={() => navigation.navigate('StorageDetail', { storage: item })}
+      >
+        <Text variant="titleMedium">{item.name}</Text>
+        <Text variant="bodySmall" style={{ color: 'gray' }}>
+          {item.itemCount} {item.itemCount === 1 ? 'item' : 'items'}
+        </Text>
+      </TouchableOpacity>
+      <Divider />
     </View>
   );
 
@@ -122,17 +151,12 @@ const StorageListScreen = ({ navigation }) => {
     <SafeAreaView style={styles.container}>
       <FlatList
         data={storages}
-        renderItem={({ item }) => (
-          <TouchableOpacity 
-            style={styles.storageCard}
-            onPress={() => navigation.navigate('StorageDetail', { storage: item })}>
-            <Text variant="titleMedium">{item.name}</Text>
-          </TouchableOpacity>
-          )}
-        keyExtractor={(item) => item.id}/>
+        renderItem={renderStorageItemInMainList}
+        keyExtractor={(item) => item.id}
+      />
 
       <View style={{ flexDirection: "row", justifyContent: 'space-around' }}>
-        <Button mode="contained" onPress={() => setModalVisible(true)}>
+        <Button icon="file-cabinet" mode="contained" onPress={() => setModalVisible(true)}>
           Manage Storages
         </Button>
       </View>
@@ -145,14 +169,14 @@ const StorageListScreen = ({ navigation }) => {
             <FlatList
               data={storages}
               keyExtractor={(item) => item.id}
-              renderItem={renderStorageItem}
+              renderItem={renderStorageItemInPopup}
             />
 
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 20, alignItems: "center" }}>
               <TextInput
                 placeholder="New Storage Name"
-                value={storageID}
-                onChangeText={setStorageID}
+                value={storageNameInput}
+                onChangeText={setStorageNameInput}
                 mode="outlined"
                 style={{ flex: 1, marginRight: 10 }}
               />
@@ -183,6 +207,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 0,
     borderBottomWidth: 1,
+    borderColor: '#ccc',
   },
   modalBackground: {
     flex: 1,
@@ -201,6 +226,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 10,
     borderBottomWidth: 1,
+    borderColor: '#eee',
   },
   closeButton: {
     marginTop: 20
