@@ -1,14 +1,53 @@
-import React from 'react';
+import React, { useLayoutEffect, useState } from 'react';
 import { View, StyleSheet, Image, TouchableOpacity } from 'react-native';
-import { Text, Card, IconButton } from 'react-native-paper';
+import { Text, Card, Button } from 'react-native-paper';
+import { db, auth } from '../firebase';
+import { doc, getDoc } from 'firebase/firestore';
 
-const MainScreen = () => {
+const MainScreen = ({ navigation, route }) => {
+  const userID = auth.currentUser.uid;
+  const [userName, setUserName] = useState('');
+
+  useLayoutEffect(() => {
+    const fetchUserName = async () => {
+      try {
+        const userRef = doc(db, 'users', userID);
+        const userSnap = await getDoc(userRef);
+
+        if (userSnap.exists()) {
+          setUserName(userSnap.data().name || 'Guest');
+        } else {
+          console.log('No such user document!');
+        }
+      } catch (error) {
+        console.error('Error fetching user name:', error);
+      }
+    };
+
+    fetchUserName();
+  }, [userID]);
+
+  useLayoutEffect(() => {
+    navigation.setOptions({
+      title: `Welcome, ${userName || '...'}`,
+      headerRight: () => (
+        <Button
+          mode="contained"
+          onPress={() => console.log('Notifications pressed')}
+          style={{ marginRight: 8 }}
+        >
+          Notifications
+        </Button>
+      ),
+    });
+  }, [navigation, userName]);
+
   const navigateToGenerate = () => {
     console.log('Generate recipe pressed');
   };
 
   const navigateToCamera = () => {
-    console.log('Camera icon pressed');
+    console.log('Camera Button pressed');
   };
 
   const navigateToCommunity = () => {
@@ -17,11 +56,7 @@ const MainScreen = () => {
 
   return (
     <View style={styles.container}>
-      {/* header */}
-      <View style={styles.header}>
-        <Text style={styles.welcomeText}>Welcome, (name)</Text>
-        <IconButton icon="bell-outline" size={24} />
-      </View>
+      <Text>{userID}</Text>
 
       {/* expiring food */}
       <Card style={styles.card}>
@@ -40,7 +75,17 @@ const MainScreen = () => {
         </Card.Content>
       </Card>
 
-      {/*buttons */}
+      {/* viral recipes */}
+      <Card style={styles.card}>
+        <Card.Content style={styles.cardContent}>
+          <Text>Popular recipes</Text>
+          <TouchableOpacity style={styles.seeAll}>
+            <Text style={{ color: 'gray' }}>…see all</Text>
+          </TouchableOpacity>
+        </Card.Content>
+      </Card>
+
+      {/* buttons */}
       <View style={styles.bottomNav}>
         <TouchableOpacity onPress={navigateToGenerate}>
           <Text style={styles.navText}>Generate{"\n"}recipe</Text>
@@ -70,15 +115,6 @@ const styles = StyleSheet.create({
     padding: 16,
     paddingTop: 40,
     borderRadius: 24,
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  welcomeText: {
-    fontSize: 18,
-    fontWeight: '500',
   },
   card: {
     backgroundColor: '#f2f2f2',
