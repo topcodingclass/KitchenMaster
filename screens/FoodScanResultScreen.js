@@ -6,12 +6,31 @@ import { db } from '../firebase';
 
 const FoodScanResultScreen = ({ route, navigation }) => {
   const { result } = route.params;
+
+  const [name, setName] = useState("");
+  const [quantity, setQuantity] = useState(0);
+  const [expirationDate, setExpirationDate] = useState("");
+  const [type, setType] = useState("");
+  const [weightLB, setWeightLB] = useState(0);
+
   const [modalVisible, setModalVisible] = useState(false);
   const [storages, setStorages] = useState([]);
   const [storageID, setStorageID] = useState('');
   const [selectedStorage, setSelectedStorage] = useState('');
 
   useEffect(() => {
+    try {
+      const foodData = JSON.parse(result);
+
+      setName(foodData.name || "");
+      setQuantity(foodData.quantity || 0);
+      setExpirationDate(foodData.expirationDate || "");
+      setType(foodData.type || "");
+      setWeightLB(foodData.weightLB || 0);
+    } catch (e) {
+      console.error("Error parsing scan result:", e);
+    }
+
     fetchStorages();
   }, []);
 
@@ -43,6 +62,11 @@ const FoodScanResultScreen = ({ route, navigation }) => {
       const foodData = JSON.parse(result);
       await addDoc(collection(db, 'foods'), {
         ...foodData,
+        name,
+        quantity,
+        expirationDate,
+        type,
+        weightLB,
         storage: selectedStorage,
         scannedDate: Timestamp.fromDate(new Date())
       });
@@ -55,11 +79,23 @@ const FoodScanResultScreen = ({ route, navigation }) => {
   return (
     <Provider>
       <View style={styles.container}>
-        <Text variant="titleMedium" style={{ marginBottom: 12 }}>Food Details</Text>
-        
-
-            <Text variant="bodyMedium">{result}</Text>
-
+        <View style={{ padding: 10 }}>
+          <TextInput label="Name" value={name} onChangeText={setName} />
+          <TextInput
+            label="Quantity"
+            value={String(quantity)}
+            keyboardType="numeric"
+            onChangeText={(text) => setQuantity(parseInt(text) || 0)}
+          />
+          <TextInput label="Expiration Date" value={expirationDate} onChangeText={setExpirationDate} />
+          <TextInput label="Type" value={type} onChangeText={setType} />
+          <TextInput
+            label="Weight (lb)"
+            value={String(weightLB)}
+            keyboardType="numeric"
+            onChangeText={(text) => setWeightLB(parseFloat(text) || 0)}
+          />
+        </View>
 
         <Button mode="contained-tonal" icon="file-cabinet" style={styles.button} onPress={() => setModalVisible(true)}>
           Select Storage
@@ -71,6 +107,10 @@ const FoodScanResultScreen = ({ route, navigation }) => {
 
         <Button mode="contained-tonal" icon="camera" style={styles.button} onPress={() => navigation.navigate('FoodScan')}>
           Retake
+        </Button>
+
+        <Button mode="outlined" icon="close" style={styles.button} onPress={() => navigation.navigate('Food List')}>
+          Cancel
         </Button>
 
         <Modal visible={modalVisible} transparent animationType="slide">
@@ -122,7 +162,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     padding: 16,
-
   },
   button: {
     marginVertical: 8,
