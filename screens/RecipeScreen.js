@@ -18,7 +18,7 @@ const RecipeScreen = ({ navigation, route }) => {
     });
   }, [navigation, recipe]);
 
-  // Timer logic
+  
   useEffect(() => {
     if (isRunning && secondsLeft > 0) {
       intervalRef.current = setInterval(() => {
