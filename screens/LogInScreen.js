@@ -1,236 +1,141 @@
-import React, { useState } from 'react'
-import { StyleSheet, View, SafeAreaView, ScrollView, Text, TouchableOpacity, Modal, TextInput } from 'react-native'
-import { Button } from 'react-native-paper'
+import { StyleSheet, View, SafeAreaView, Image, Dimensions, ScrollView } from 'react-native';
+import { Text, TextInput, Button } from 'react-native-paper';
+import React, { useState } from 'react';
+import { signInWithEmailAndPassword } from "firebase/auth";
+import { db, auth } from '../firebase';
 
-const MealPlannerScreen = ({ navigation }) => {
-  const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
+const LogInScreen = ({ navigation, route }) => {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [loginFailed, setLoginFailed] = useState(false);
 
-  // Each day gets its own meals list
-  const [mealsByDay, setMealsByDay] = useState({
-    Sun: ["Your meal"],
-    Mon: ["Your meal"],
-    Tue: ["Your meal"],
-    Wed: ["Your meal"],
-    Thu: ["Your meal"],
-    Fri: ["Your meal"],
-    Sat: ["Your meal"]
-  })
+  let isFromSignUp = route?.params?.isFromSignUp ?? false;
+  const screenWidth = Dimensions.get('window').width;
 
-  const [selectedDay, setSelectedDay] = useState("Thu") // Default day
-  const [modalVisible, setModalVisible] = useState(false)
-  const [currentMeal, setCurrentMeal] = useState("")
-  const [editingIndex, setEditingIndex] = useState(null)
-
-  // Get current day's meals
-  const currentMeals = mealsByDay[selectedDay]
-
-  // Save meal changes (add or edit)
-  const handleSaveMeal = () => {
-    if (currentMeal.trim() === "") {
-      setModalVisible(false)
-      return
-    }
-
-    const updatedMeals = [...currentMeals]
-    if (editingIndex !== null) {
-      updatedMeals[editingIndex] = currentMeal // Edit existing
-    } else {
-      updatedMeals.push(currentMeal) // Add new
-    }
-
-    setMealsByDay({ ...mealsByDay, [selectedDay]: updatedMeals })
-    setModalVisible(false)
-    setCurrentMeal("")
-    setEditingIndex(null)
-  }
-
-  // Open modal to edit a meal
-  const handleEditMeal = (index) => {
-    setCurrentMeal(currentMeals[index])
-    setEditingIndex(index)
-    setModalVisible(true)
-  }
-
-  // Open modal to add a meal
-  const handleAddMeal = () => {
-    setCurrentMeal("")
-    setEditingIndex(null)
-    setModalVisible(true)
-  }
+  const logIn = async () => {
+    signInWithEmailAndPassword(auth, email, password)
+      .then((userCredential) => {
+        navigation.navigate('Top Recipes');
+        setLoginFailed(false);
+      })
+      .catch((error) => {
+        console.log(error.message);
+        setLoginFailed(true);
+      });
+  };
 
   return (
-    <SafeAreaView style={{ flex: 1 }}>
-      <ScrollView contentContainerStyle={{ flexGrow: 1, padding: 15 }}>
+    <SafeAreaView style={styles.container}>
+      <ScrollView contentContainerStyle={styles.scrollContent}>
+        <Image
+          source={require("../assets/logo.png")}
+          style={[styles.logo, { width: screenWidth, height: screenWidth }]}
+          resizeMode="contain"
+        />
 
+        {loginFailed && (
+          <Text style={styles.errorText}>Login failed. Please try again.</Text>
+        )}
 
-        {/* Title */}
-        <View style={styles.header}>
-          <Text style={styles.title}>Welcome to your meal planner</Text>
+        {isFromSignUp && (
+          <Text style={styles.successText}>
+            🎉 You have signed up successfully. Please log in.
+          </Text>
+        )}
+
+        <View style={styles.inputContainer}>
+          <TextInput
+            style={styles.input}
+            label="Email"
+            value={email}
+            onChangeText={setEmail}
+            autoCapitalize='none'
+            mode="outlined"
+            outlineColor="#FF4500"
+            activeOutlineColor="#FF4500"
+          />
+          <TextInput
+            style={styles.input}
+            label="Password"
+            value={password}
+            onChangeText={setPassword}
+            secureTextEntry
+            autoCapitalize='none'
+            mode="outlined"
+            outlineColor="#FF4500"
+            activeOutlineColor="#FF4500"
+          />
         </View>
 
-        {/* Days Row */}
-        <View style={styles.daysRow}>
-          {days.map((day, index) => (
-            <TouchableOpacity 
-              key={index} 
-              style={[
-                styles.dayBox, 
-                selectedDay.startsWith(day) && styles.selectedDay
-              ]}
-              onPress={() => setSelectedDay(day)}
-            >
-              <Text>day</Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-
-        {/* Meals Section */}
-        <View style={styles.mealBox}>
-          <Text style={styles.mealHeader}>{selectedDay}’s Meals</Text>
-          {currentMeals.map((meal, index) => (
-            <TouchableOpacity key={index} onPress={() => handleEditMeal(index)}>
-              <Text style={styles.mealText}>- {meal}</Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-
-        {/* Footer buttons */}
-        <View style={styles.footer}>
-          <Button mode="contained" style={styles.smallBtn}>
-            Next week
+        <View style={styles.buttonContainer}>
+          <Button
+            icon="login-variant"
+            mode="contained"
+            onPress={logIn}
+            buttonColor="#FF4500"
+            textColor="white"
+          >
+            Log In
           </Button>
-          <Button mode="contained" style={styles.addBtn} onPress={handleAddMeal}>
-            +
-          </Button>
-          <Button mode="contained" style={styles.smallBtn}>
-            Add meal{"\n"}from community
+          <Button
+            icon="clipboard-account-outline"
+            mode="contained"
+            style={styles.signUpButton}
+            onPress={() => navigation.navigate('Register')}
+            buttonColor="#FFA07A"
+            textColor="white"
+          >
+            Sign Up
           </Button>
         </View>
       </ScrollView>
-
-      {/* Modal for adding/editing meal */}
-      <Modal visible={modalVisible} animationType="slide" transparent>
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>
-              {editingIndex !== null ? "Edit Meal" : "Add Meal"}
-            </Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Enter meal name"
-              value={currentMeal}
-              onChangeText={setCurrentMeal}
-            />
-            <View style={styles.modalButtons}>
-              <Button mode="contained" style={styles.modalBtn} onPress={handleSaveMeal}>
-                Save
-              </Button>
-              <Button mode="outlined" style={styles.modalBtn} onPress={() => setModalVisible(false)}>
-                Cancel
-              </Button>
-            </View>
-          </View>
-        </View>
-      </Modal>
     </SafeAreaView>
-  )
-}
+  );
+};
 
-export default MealPlannerScreen
+export default LogInScreen;
 
 const styles = StyleSheet.create({
-  backBtn: {
-    backgroundColor: 'orange',
-    alignSelf: 'flex-start',
-    marginBottom: 10
-  },
-  header: {
-    alignItems: 'center',
-    marginBottom: 15
-  },
-  title: {
-    fontSize: 16,
-    fontWeight: 'bold'
-  },
-  daysRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 20
-  },
-  dayBox: {
-    borderWidth: 1,
-    borderColor: '#999',
-    borderRadius: 5,
-    width: 55,
-    alignItems: 'center',
-    paddingVertical: 4
-  },
-  selectedDay: {
-    backgroundColor: '#ddd'
-  },
-  mealBox: {
-    borderWidth: 2,
-    borderColor: '#ccc',
-    borderRadius: 15,
-    padding: 15,
-    marginBottom: 20
-  },
-  mealHeader: {
-    fontWeight: 'bold',
-    fontSize: 16,
-    marginBottom: 8
-  },
-  mealText: {
-    fontSize: 14,
-    color: 'gray',
-    paddingVertical: 4
-  },
-  footer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 'auto'
-  },
-  smallBtn: {
+  container: {
     flex: 1,
-    marginHorizontal: 5
+    backgroundColor: '#FAFAFA',
   },
-  addBtn: {
-    width: 50,
-    borderRadius: 25,
-    justifyContent: 'center'
+  scrollContent: {
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingBottom: 30,
   },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.4)',
-    justifyContent: 'center',
-    alignItems: 'center'
-  },
-  modalContent: {
-    width: '85%',
-    backgroundColor: '#fff',
-    borderRadius: 15,
-    padding: 20,
-    elevation: 5
-  },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
+  logo: {
+    marginTop: 40,
     marginBottom: 10,
-    textAlign: 'center'
+    alignSelf: 'center',
+  },
+  inputContainer: {
+    width: '100%',
+    marginTop: 20,
   },
   input: {
-    borderWidth: 1,
-    borderColor: '#ccc',
+    backgroundColor: 'white',
+    marginBottom: 15,
     borderRadius: 8,
-    padding: 10,
-    marginBottom: 15
   },
-  modalButtons: {
-    flexDirection: 'row',
-    justifyContent: 'space-between'
+  buttonContainer: {
+    width: '100%',
+    marginTop: 30,
   },
-  modalBtn: {
-    flex: 1,
-    marginHorizontal: 5
+  signUpButton: {
+    marginTop: 10,
+  },
+  errorText: {
+    color: "red",
+    fontSize: 15,
+    textAlign: "center",
+    marginTop: 10,
+  },
+  successText: {
+    color: '#3c763d',
+    fontSize: 15,
+    textAlign: 'center',
+    marginTop: 10,
   }
-})
+});
