@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import { View, StyleSheet, Image, TouchableOpacity, ActivityIndicator } from 'react-native';
+import {View,StyleSheet,Image,TouchableOpacity,ActivityIndicator,} from 'react-native';
 import { Text, Card, Button } from 'react-native-paper';
 import { db, auth } from '../firebase';
 import { doc, getDoc, collection, getDocs } from 'firebase/firestore';
 
 const MainScreen = ({ navigation }) => {
   const userID = auth.currentUser?.uid;
+
   const [userName, setUserName] = useState('');
   const [todayMeal, setTodayMeal] = useState('');
   const [expiringFood, setExpiringFood] = useState([]);
@@ -36,6 +37,7 @@ const MainScreen = ({ navigation }) => {
     fetchUserName();
   }, [userID]);
 
+  // Fetch today's meal plan
   useEffect(() => {
     if (!userID) return;
 
@@ -48,10 +50,18 @@ const MainScreen = ({ navigation }) => {
           const planDoc = planSnapshot.docs[0];
           const data = planDoc.data();
 
-          const days = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+          const days = [
+            'Sunday',
+            'Monday',
+            'Tuesday',
+            'Wednesday',
+            'Thursday',
+            'Friday',
+            'Saturday',
+          ];
           const todayName = days[new Date().getDay()];
-
           const meal = data[todayName];
+
           setTodayMeal(meal || 'No meal planned for today');
         } else {
           setTodayMeal('No meal planned for today');
@@ -67,6 +77,7 @@ const MainScreen = ({ navigation }) => {
     fetchTodayMeal();
   }, [userID]);
 
+  // Fetch expiring food items
   useEffect(() => {
     if (!userID) return;
 
@@ -79,8 +90,10 @@ const MainScreen = ({ navigation }) => {
           const expiringDoc = expiringSnapshot.docs[0];
           const data = expiringDoc.data();
 
-          const sortedKeys = Object.keys(data).sort((a,b) => parseInt(a) - parseInt(b));
-          const items = sortedKeys.map(key => data[key]);
+          const sortedKeys = Object.keys(data).sort(
+            (a, b) => parseInt(a) - parseInt(b)
+          );
+          const items = sortedKeys.map((key) => data[key]);
 
           setAllExpiringFood(items);
           setExpiringFood(items.slice(0, 3));
@@ -98,7 +111,7 @@ const MainScreen = ({ navigation }) => {
     fetchExpiringFood();
   }, [userID]);
 
-  // Set header
+  // Set header with welcome message
   useEffect(() => {
     navigation.setOptions({
       title: `Welcome, ${userName || '...'}`,
@@ -131,73 +144,90 @@ const MainScreen = ({ navigation }) => {
     );
   }
 
-  const navigateToGenerate = () => {navigation.navigate('RecipeListScreen');};
-  const navigateToCamera = () => {navigation.navigate('FoodScan');};
-  const navigateToCommunity = () => {navigation.navigate('FoodCommunity');};
+  // Navigation functions
+  const navigateToGenerate = () => navigation.navigate('RecipeListScreen');
+  const navigateToCamera = () => navigation.navigate('FoodScan');
+  const navigateToCommunity = () => navigation.navigate('FoodCommunity');
+  const navigateToPlanner = () => navigation.navigate('MealPlanner');
+  const navigateToStorage = () => navigation.navigate('FoodStorage');
+  const navigateToAdd = () => navigation.navigate('FoodAdd');
 
-  // Toggle first 3 vs all expiring items
+  // Toggle expiring items view
   const handleSeeAll = () => {
-    if (showAllExpiring) {
-      setExpiringFood(allExpiringFood.slice(0, 3));
-    } else {
-      setExpiringFood(allExpiringFood);
-    }
-    setShowAllExpiring(!showAllExpiring);
+    setShowAllExpiring((prev) => {
+      const nextShowAll = !prev;
+      setExpiringFood(
+        nextShowAll ? allExpiringFood : allExpiringFood.slice(0, 3)
+      );
+      return nextShowAll;
+    });
   };
 
   return (
     <View style={styles.container}>
-      {/* Expiring food */}
+      {/* Expiring food section */}
       <Card style={styles.card}>
         <Card.Content style={styles.cardContent}>
-          <Text>Food that expires soon:</Text>
-          <View>
-            {expiringFood.map((item, index) => (
-              <Text key={index}>- {item}</Text>
-            ))}
-          </View>
-          {allExpiringFood.length > 0 && (
+          <Text style={styles.sectionTitle}>Expiring Soon</Text>
+          {expiringFood.map((item, index) => (
+            <Text key={index} style={styles.itemText}>
+              • {item}
+            </Text>
+          ))}
+
+          {allExpiringFood.length > 3 && (
             <TouchableOpacity style={styles.seeAll} onPress={handleSeeAll}>
-              <Text style={{ color: 'gray' }}>
+              <Text style={styles.seeAllText}>
                 {showAllExpiring ? '…see less' : '…see all'}
               </Text>
             </TouchableOpacity>
           )}
+
+          <Button mode="outlined" onPress={navigateToStorage}>
+            Storage Screen
+          </Button>
         </Card.Content>
       </Card>
 
-      {/* Today’s meal plan */}
-      <Card style={styles.card}>
-        <Card.Content>
-          <Text>Today’s meal plan: {todayMeal}</Text>
-        </Card.Content>
-      </Card>
-
-      {/* Popular recipes */}
+      {/* Today's meal plan section */}
       <Card style={styles.card}>
         <Card.Content style={styles.cardContent}>
-          <Text>Popular recipes</Text>
-          <TouchableOpacity style={styles.seeAll}>
-            <Text style={{ color: 'gray' }}>…see all</Text>
-          </TouchableOpacity>
+          <Text style={styles.sectionTitle}>Today’s Meal Plan</Text>
+          <Text style={styles.itemText}>{todayMeal}</Text>
+
+          <Button mode="outlined" onPress={navigateToPlanner}>
+            Meal Planner
+          </Button>
         </Card.Content>
       </Card>
 
-      {/* Bottom navigation buttons */}
+      {/* Community recipes section */}
+      <Card style={styles.card}>
+        <Card.Content style={styles.cardContent}>
+          <Text style={styles.sectionTitle}>Popular Recipes</Text>
+          <Button mode="outlined" onPress={navigateToCommunity}>
+            Community Page
+          </Button>
+        </Card.Content>
+      </Card>
+
+      {/* Bottom Navigation */}
       <View style={styles.bottomNav}>
         <Button onPress={navigateToGenerate}>
-          <Text style={styles.navText}>Generate{"\n"}recipe</Text>
+          <Text style={styles.navText}>Generate{'\n'}Recipe</Text>
         </Button>
 
         <Button onPress={navigateToCamera}>
           <Image
-            source={{ uri: 'https://img.icons8.com/ios-filled/50/000000/camera.png' }}
+            source={{
+              uri: 'https://img.icons8.com/ios-filled/50/000000/camera.png',
+            }}
             style={styles.cameraIcon}
           />
         </Button>
 
-        <Button onPress={navigateToCommunity}>
-          <Text style={styles.navText}>Community{"\n"}page</Text>
+        <Button onPress={navigateToAdd}>
+          <Text style={styles.navText}>Add{'\n'}Recipe</Text>
         </Button>
       </View>
     </View>
@@ -216,17 +246,31 @@ const styles = StyleSheet.create({
   card: {
     backgroundColor: '#f2f2f2',
     marginVertical: 10,
+    padding: 10,
+    borderRadius: 8,
     borderWidth: 1,
     borderColor: '#ccc',
   },
   cardContent: {
     flexDirection: 'column',
-    justifyContent: 'flex-start',
-    alignItems: 'flex-start',
+    gap: 8,
+  },
+  sectionTitle: {
+    fontWeight: 'bold',
+    fontSize: 16,
+    marginBottom: 8,
+  },
+  itemText: {
+    fontSize: 14,
+    marginBottom: 4,
   },
   seeAll: {
-    padding: 4,
     marginTop: 4,
+    marginBottom: 10,
+  },
+  seeAllText: {
+    color: 'gray',
+    fontStyle: 'italic',
   },
   bottomNav: {
     position: 'absolute',
