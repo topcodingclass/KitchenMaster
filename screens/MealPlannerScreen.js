@@ -1,11 +1,28 @@
-import React, { useState } from 'react'
-import { StyleSheet, View, SafeAreaView, ScrollView, Text, TouchableOpacity, Modal, TextInput } from 'react-native'
-import { Button } from 'react-native-paper'
+import React, { useState } from "react";
+import {
+  StyleSheet,
+  View,
+  SafeAreaView,
+  ScrollView,
+  Text,
+  TouchableOpacity,
+  Modal,
+  TextInput,
+} from "react-native";
+import { Button } from "react-native-paper";
 
 const MealPlannerScreen = ({ navigation }) => {
-  const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
+  const days = [
+    { short: "S", rest: "un", full: "Sun" },
+    { short: "M", rest: "on", full: "Mon" },
+    { short: "T", rest: "ue", full: "Tue" },
+    { short: "W", rest: "ed", full: "Wed" },
+    { short: "T", rest: "hu", full: "Thu" },
+    { short: "F", rest: "ri", full: "Fri" },
+    { short: "S", rest: "at", full: "Sat" },
+  ];
 
-  // Each day gets its own meals list
+  // Meals per day
   const [mealsByDay, setMealsByDay] = useState({
     Sun: ["Your meal"],
     Mon: ["Your meal"],
@@ -13,82 +30,109 @@ const MealPlannerScreen = ({ navigation }) => {
     Wed: ["Your meal"],
     Thu: ["Your meal"],
     Fri: ["Your meal"],
-    Sat: ["Your meal"]
-  })
+    Sat: ["Your meal"],
+  });
 
-  const [selectedDay, setSelectedDay] = useState("Thu") // Default day
-  const [modalVisible, setModalVisible] = useState(false)
-  const [currentMeal, setCurrentMeal] = useState("")
-  const [editingIndex, setEditingIndex] = useState(null)
+  const [selectedDay, setSelectedDay] = useState("Thu");
+  const [modalVisible, setModalVisible] = useState(false);
+  const [currentMeal, setCurrentMeal] = useState("");
+  const [editingIndex, setEditingIndex] = useState(null);
 
-  // Get current day's meals
-  const currentMeals = mealsByDay[selectedDay]
+  // Track current date
+  const [currentDate, setCurrentDate] = useState(new Date());
 
-  // Save meal changes (add or edit)
+  const currentMeals = mealsByDay[selectedDay];
+
+  // Format date for display
+  const formatDate = (date) => {
+    return date.toLocaleDateString("en-US", {
+      weekday: "short",
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    });
+  };
+
+  const handleNextWeek = () => {
+    const nextWeek = new Date(currentDate);
+    nextWeek.setDate(nextWeek.getDate() + 7);
+    setCurrentDate(nextWeek);
+  };
+
+  const handlePreviousWeek = () => {
+    const previousWeek = new Date(currentDate);
+    previousWeek.setDate(previousWeek.getDate() - 7);
+    setCurrentDate(previousWeek);
+  };
+
   const handleSaveMeal = () => {
     if (currentMeal.trim() === "") {
-      setModalVisible(false)
-      return
+      setModalVisible(false);
+      return;
     }
-
-    const updatedMeals = [...currentMeals]
+    const updatedMeals = [...currentMeals];
     if (editingIndex !== null) {
-      updatedMeals[editingIndex] = currentMeal // Edit existing
+      updatedMeals[editingIndex] = currentMeal;
     } else {
-      updatedMeals.push(currentMeal) // Add new
+      updatedMeals.push(currentMeal);
     }
+    setMealsByDay({ ...mealsByDay, [selectedDay]: updatedMeals });
+    setModalVisible(false);
+    setCurrentMeal("");
+    setEditingIndex(null);
+  };
 
-    setMealsByDay({ ...mealsByDay, [selectedDay]: updatedMeals })
-    setModalVisible(false)
-    setCurrentMeal("")
-    setEditingIndex(null)
-  }
-
-  // Open modal to edit a meal
   const handleEditMeal = (index) => {
-    setCurrentMeal(currentMeals[index])
-    setEditingIndex(index)
-    setModalVisible(true)
-  }
+    setCurrentMeal(currentMeals[index]);
+    setEditingIndex(index);
+    setModalVisible(true);
+  };
 
-  // Open modal to add a meal
   const handleAddMeal = () => {
-    setCurrentMeal("")
-    setEditingIndex(null)
-    setModalVisible(true)
-  }
+    setCurrentMeal("");
+    setEditingIndex(null);
+    setModalVisible(true);
+  };
 
   return (
-    <SafeAreaView style={{ flex: 1 }}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: "#f7f7f7" }}>
       <ScrollView contentContainerStyle={{ flexGrow: 1, padding: 15 }}>
-
         {/* Back Button */}
-        <Button 
-          mode="contained" 
-          style={styles.backBtn} 
-          onPress={() => navigation.goBack()}
-        >
-          Back
-        </Button>
+        <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
+          <Text style={styles.backBtnText}>Back</Text>
+        </TouchableOpacity>
 
         {/* Title */}
         <View style={styles.header}>
-          <Text style={styles.title}>Welcome to your meal planner</Text>
+          <Text style={styles.title}>Welcome to your{"\n"}meal planner</Text>
+        </View>
+
+        {/* Date Display + Week Navigation */}
+        <View style={styles.dateRow}>
+          <TouchableOpacity style={styles.weekBtn} onPress={handlePreviousWeek}>
+            <Text style={styles.weekBtnText}>Previous week</Text>
+          </TouchableOpacity>
+
+          <Text style={styles.dateText}>{formatDate(currentDate)}</Text>
+
+          <TouchableOpacity style={styles.weekBtn} onPress={handleNextWeek}>
+            <Text style={styles.weekBtnText}>Next week</Text>
+          </TouchableOpacity>
         </View>
 
         {/* Days Row */}
         <View style={styles.daysRow}>
           {days.map((day, index) => (
-            <TouchableOpacity 
-              key={index} 
+            <TouchableOpacity
+              key={index}
               style={[
-                styles.dayBox, 
-                selectedDay.startsWith(day) && styles.selectedDay
+                styles.dayBox,
+                selectedDay === day.full && styles.selectedDay,
               ]}
-              onPress={() => setSelectedDay(day)}
+              onPress={() => setSelectedDay(day.full)}
             >
-              <Text>{day.charAt(0)}</Text>
-              <Text>{day.slice(1)}</Text>
+              <Text style={styles.dayShort}>{day.short}</Text>
+              <Text style={styles.dayRest}>{day.rest}</Text>
             </TouchableOpacity>
           ))}
         </View>
@@ -103,17 +147,17 @@ const MealPlannerScreen = ({ navigation }) => {
           ))}
         </View>
 
-        {/* Footer buttons */}
-        <View style={styles.footer}>
-          <Button mode="contained" style={styles.smallBtn}>
-            Next week
-          </Button>
-          <Button mode="contained" style={styles.addBtn} onPress={handleAddMeal}>
-            +
-          </Button>
-          <Button mode="contained" style={styles.smallBtn}>
-            Add meal{"\n"}from community
-          </Button>
+        {/* Bottom Buttons */}
+        <View style={styles.bottomButtons}>
+          <TouchableOpacity style={styles.bottomBtn} onPress={handleAddMeal}>
+            <Text style={styles.bottomBtnText}>Add meal{"\n"}from my food</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.bottomBtn}>
+            <Text style={styles.bottomBtnText}>
+              Add meal{"\n"}from community screen
+            </Text>
+          </TouchableOpacity>
         </View>
       </ScrollView>
 
@@ -131,10 +175,18 @@ const MealPlannerScreen = ({ navigation }) => {
               onChangeText={setCurrentMeal}
             />
             <View style={styles.modalButtons}>
-              <Button mode="contained" style={styles.modalBtn} onPress={handleSaveMeal}>
+              <Button
+                mode="contained"
+                style={styles.modalBtn}
+                onPress={handleSaveMeal}
+              >
                 Save
               </Button>
-              <Button mode="outlined" style={styles.modalBtn} onPress={() => setModalVisible(false)}>
+              <Button
+                mode="outlined"
+                style={styles.modalBtn}
+                onPress={() => setModalVisible(false)}
+              >
                 Cancel
               </Button>
             </View>
@@ -142,104 +194,166 @@ const MealPlannerScreen = ({ navigation }) => {
         </View>
       </Modal>
     </SafeAreaView>
-  )
-}
+  );
+};
 
-export default MealPlannerScreen
+export default MealPlannerScreen;
 
 const styles = StyleSheet.create({
   backBtn: {
-    backgroundColor: 'orange',
-    alignSelf: 'flex-start',
-    marginBottom: 10
+    backgroundColor: "orange",
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    borderRadius: 5,
+    alignSelf: "flex-start",
+    marginBottom: 10,
+  },
+  backBtnText: {
+    color: "black",
+    fontWeight: "bold",
+    fontSize: 14,
   },
   header: {
-    alignItems: 'center',
-    marginBottom: 15
+    alignItems: "center",
+    marginBottom: 10,
   },
   title: {
-    fontSize: 16,
-    fontWeight: 'bold'
+    fontSize: 18,
+    fontWeight: "bold",
+    paddingVertical: 8,
+    paddingHorizontal: 15,
+    borderWidth: 1,
+    borderColor: "#aaa",
+    borderRadius: 10,
+    textAlign: "center",
+    backgroundColor: "#fff",
+  },
+  dateRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 10,
+    paddingHorizontal: 5,
+  },
+  dateText: {
+    fontSize: 14,
+    color: "#555",
+    textAlign: "center",
+    flex: 1,
+  },
+  weekBtn: {
+    backgroundColor: "#fff",
+    borderWidth: 1,
+    borderColor: "#ccc",
+    paddingVertical: 4,
+    paddingHorizontal: 10,
+    borderRadius: 10,
+    elevation: 2,
+  },
+  weekBtnText: {
+    fontSize: 12,
+    color: "#333",
   },
   daysRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 20
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginTop: 10,
+    marginBottom: 25,
+    backgroundColor: "#fff",
+    borderRadius: 15,
+    paddingVertical: 8,
+    paddingHorizontal: 5,
+    borderWidth: 1,
+    borderColor: "#ccc",
   },
   dayBox: {
-    borderWidth: 1,
-    borderColor: '#999',
-    borderRadius: 5,
-    width: 35,
-    alignItems: 'center',
-    paddingVertical: 4
+    width: 45,
+    alignItems: "center",
+    paddingVertical: 6,
+    borderRadius: 10,
   },
   selectedDay: {
-    backgroundColor: '#ddd'
+    backgroundColor: "#ccc",
+  },
+  dayShort: {
+    fontWeight: "bold",
+    fontSize: 16,
+  },
+  dayRest: {
+    fontSize: 12,
+    color: "#555",
   },
   mealBox: {
     borderWidth: 2,
-    borderColor: '#ccc',
-    borderRadius: 15,
+    borderColor: "#ccc",
+    borderRadius: 20,
     padding: 15,
-    marginBottom: 20
+    marginBottom: 20,
+    backgroundColor: "#fff",
+    alignItems: "center",
   },
   mealHeader: {
-    fontWeight: 'bold',
-    fontSize: 16,
-    marginBottom: 8
+    fontWeight: "bold",
+    fontSize: 18,
+    marginBottom: 10,
   },
   mealText: {
-    fontSize: 14,
-    color: 'gray',
-    paddingVertical: 4
+    fontSize: 16,
+    color: "gray",
+    paddingVertical: 4,
   },
-  footer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 'auto'
+  bottomButtons: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginTop: 10,
   },
-  smallBtn: {
+  bottomBtn: {
     flex: 1,
-    marginHorizontal: 5
+    marginHorizontal: 5,
+    backgroundColor: "#fff",
+    borderWidth: 1,
+    borderColor: "#ccc",
+    paddingVertical: 10,
+    borderRadius: 12,
+    alignItems: "center",
   },
-  addBtn: {
-    width: 50,
-    borderRadius: 25,
-    justifyContent: 'center'
+  bottomBtnText: {
+    textAlign: "center",
+    fontSize: 14,
+    color: "#333",
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.4)',
-    justifyContent: 'center',
-    alignItems: 'center'
+    backgroundColor: "rgba(0, 0, 0, 0.4)",
+    justifyContent: "center",
+    alignItems: "center",
   },
   modalContent: {
-    width: '85%',
-    backgroundColor: '#fff',
+    width: "85%",
+    backgroundColor: "#fff",
     borderRadius: 15,
     padding: 20,
-    elevation: 5
+    elevation: 5,
   },
   modalTitle: {
     fontSize: 18,
-    fontWeight: 'bold',
+    fontWeight: "bold",
     marginBottom: 10,
-    textAlign: 'center'
+    textAlign: "center",
   },
   input: {
     borderWidth: 1,
-    borderColor: '#ccc',
+    borderColor: "#ccc",
     borderRadius: 8,
     padding: 10,
-    marginBottom: 15
+    marginBottom: 15,
   },
   modalButtons: {
-    flexDirection: 'row',
-    justifyContent: 'space-between'
+    flexDirection: "row",
+    justifyContent: "space-between",
   },
   modalBtn: {
     flex: 1,
-    marginHorizontal: 5
-  }
-})
+    marginHorizontal: 5,
+  },
+});
