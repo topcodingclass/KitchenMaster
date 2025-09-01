@@ -1,11 +1,5 @@
 import React, { useEffect, useState, useLayoutEffect } from 'react';
-import {
-  View,
-  StyleSheet,
-  Image,
-  TouchableOpacity,
-  ActivityIndicator,
-} from 'react-native';
+import {View,StyleSheet,Image,TouchableOpacity,ActivityIndicator,} from 'react-native';
 import { Text, Card, Button } from 'react-native-paper';
 import { db, auth } from '../firebase';
 import { doc, getDoc, collection, getDocs } from 'firebase/firestore';
@@ -15,7 +9,7 @@ const MainScreen = ({ navigation }) => {
 
   const [userName, setUserName] = useState('');
   const [todayMeal, setTodayMeal] = useState('');
-  const [todayName, setTodayName] = useState(''); // ✅ store current day name
+  const [todayName, setTodayName] = useState(''); // store current day name
   const [expiringFood, setExpiringFood] = useState([]);
   const [allExpiringFood, setAllExpiringFood] = useState([]);
   const [showAllExpiring, setShowAllExpiring] = useState(false);
@@ -26,6 +20,8 @@ const MainScreen = ({ navigation }) => {
 
   useLayoutEffect(() => {
     navigation.setOptions({
+    headerBackVisible: false,   // 🔹 hides the back arrow (RN v6+)
+      headerLeft: () => null,     // extra safeguard
       headerRight: () => (
         <TouchableOpacity
           style={styles.notificationButton}
@@ -174,11 +170,11 @@ const MainScreen = ({ navigation }) => {
   }
 
   // Navigation functions
-  const navigateToGenerate = () => navigation.navigate('RecipeListScreen');
-  const navigateToCamera = () => navigation.navigate('FoodScan');
-  const navigateToCommunity = () => navigation.navigate('FoodCommunity');
-  const navigateToPlanner = () => navigation.navigate('MealPlanner');
-  const navigateToStorage = () => navigation.navigate('FoodStorage');
+  const navigateToGenerate = () => navigation.navigate('Recipe List');
+  const navigateToCamera = () => navigation.navigate('Food Scan');
+  const navigateToCommunity = () => navigation.navigate('Community Recipes');
+  const navigateToPlanner = () => navigation.navigate('Meal Planner');
+  const navigateToStorage = () => navigation.navigate('Storage List');
 
   // Toggle expiring items view
   const handleSeeAllExpiring = () => {
@@ -246,15 +242,10 @@ const MainScreen = ({ navigation }) => {
 
       {/* Bottom Navigation */}
       <View style={styles.bottomNav}>
-        <Button onPress={navigateToGenerate}>
-          <Text style={styles.navText}>Generate{'\n'}Recipe</Text>
+        <Button style={{width:'170'}}onPress={navigateToGenerate}mode="contained" icon="pot-steam" ustifyContent="center">Generate Recipe
         </Button>
 
-        <Button onPress={navigateToCamera}>
-          <Image
-            source={{ uri: 'https://img.icons8.com/ios-filled/50/000000/camera.png' }}
-            style={styles.cameraIcon}
-          />
+        <Button style={{width:'170'}}onPress={navigateToCamera}mode="contained" icon="camera" justifyContent="center">Scan Food
         </Button>
       </View>
     </View>
@@ -264,14 +255,14 @@ const MainScreen = ({ navigation }) => {
 export default MainScreen;
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#eee', padding: 16, paddingTop: 40 },
+  container: { flex: 1, backgroundColor: '#eee', padding: 7, },
   card: { backgroundColor: '#f2f2f2', marginVertical: 10, padding: 10, borderRadius: 8, borderWidth: 1, borderColor: '#ccc' },
   cardContent: { flexDirection: 'column', gap: 8 },
   sectionTitle: { fontWeight: 'bold', fontSize: 16, marginBottom: 8 },
   itemText: { fontSize: 14, marginBottom: 4 },
   seeAll: { marginTop: 4, marginBottom: 10 },
   seeAllText: { color: 'gray', fontStyle: 'italic' },
-  bottomNav: { position: 'absolute', bottom: 20, width: '100%', paddingHorizontal: 40, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  bottomNav: { position: 'absolute', bottom: 20, width: '100%', paddingHorizontal: 10, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   navText: { fontSize: 12, textAlign: 'center' },
   cameraIcon: { width: 40, height: 40 },
   centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
