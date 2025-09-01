@@ -1,3 +1,7 @@
+//2025-8-31 fixed navigation errors and screen design
+
+
+
 import React, { useEffect, useState, useLayoutEffect } from 'react';
 import {View,StyleSheet,Image,TouchableOpacity,ActivityIndicator,} from 'react-native';
 import { Text, Card, Button } from 'react-native-paper';
