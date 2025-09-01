@@ -1,4 +1,8 @@
 // App.js
+//P Hhwang
+
+//2025-08-31: Added all screens
+
 import { StyleSheet } from 'react-native';
 import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
