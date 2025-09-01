@@ -1,7 +1,8 @@
 import React, { useLayoutEffect, useState, useEffect, useRef } from 'react';
 import { SafeAreaView, StyleSheet, View, ScrollView, TouchableOpacity } from 'react-native';
 import { Text, Button, Divider } from 'react-native-paper';
-import { StarRatingDisplay } from 'react-native-star-rating-widget';
+import StarRating from 'react-native-star-rating-widget'; // ✅ fixed import
+import { Rating, AirbnbRating } from 'react-native-ratings';
 
 const CommunityRecipeDetailScreen = ({ navigation, route }) => {
   const { recipe } = route.params;
@@ -11,27 +12,33 @@ const CommunityRecipeDetailScreen = ({ navigation, route }) => {
   const [isRunning, setIsRunning] = useState(false);
   const intervalRef = useRef(null);
 
+  // RATINGS STATE
+  const [ratingsList, setRatingsList] = useState(recipe.rating || []);
+  const [rating, setRating] = useState(0);
+
   const getAverageRating = (ratings) => {
     if (!ratings || ratings.length === 0) return 0;
     const total = ratings.reduce((sum, r) => sum + r.rating, 0);
     return total / ratings.length;
   };
 
+  // Update header title and average rating display dynamically when ratingsList changes
   useLayoutEffect(() => {
     navigation.setOptions({
       title: recipe.name,
       headerRight: () => (
         <View style={{ marginRight: 5, flexDirection: 'row' }}>
-          <StarRatingDisplay
-            rating={getAverageRating(recipe.rating)}
+          <StarRating
+            rating={getAverageRating(ratingsList)}
+            onChange={() => {}} // ✅ read-only mode
             starSize={18}
             color="gold"
-            starStyle={{ marginHorizontal: -1 }}
+            enableHalfStar={true}
           />
         </View>
       ),
     });
-  }, [navigation, recipe]);
+  }, [navigation, recipe, ratingsList]);
 
   useEffect(() => {
     if (isRunning && secondsLeft > 0) {
@@ -75,11 +82,17 @@ const CommunityRecipeDetailScreen = ({ navigation, route }) => {
     setSecondsLeft(0);
   };
 
+  // ✅ ADDED FUNCTION TO HANDLE RATING FROM `react-native-ratings`
+  const ratingCompleted = (newRating) => {
+    console.log("Rating is: " + newRating);
+    setRating(newRating);
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.content}>
         <Text style={styles.description}>{recipe.description}</Text>
-        <Divider/>
+        <Divider />
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Nutrition (per serving)</Text>
           <Text style={styles.listItem}>• Calories: {recipe.calories}</Text>
@@ -87,7 +100,7 @@ const CommunityRecipeDetailScreen = ({ navigation, route }) => {
           <Text style={styles.listItem}>• Protein: {recipe.protein}g</Text>
           <Text style={styles.listItem}>• Fat: {recipe.fat}g</Text>
         </View>
-        <Divider/>
+        <Divider />
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Ingredients</Text>
           {recipe.ingredients.map((item, index) => (
@@ -96,7 +109,7 @@ const CommunityRecipeDetailScreen = ({ navigation, route }) => {
             </Text>
           ))}
         </View>
-          <Divider/>
+        <Divider />
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Steps</Text>
           {recipe.steps.map((item, index) => (
@@ -104,8 +117,9 @@ const CommunityRecipeDetailScreen = ({ navigation, route }) => {
               <Text style={styles.stepText}>
                 {item.sequence}. {item.description}
               </Text>
-              <TouchableOpacity onPress={() => startStepTimer(item.time)}><Text style={styles.timeText}>⏱ {item.time}</Text></TouchableOpacity>
-              
+              <TouchableOpacity onPress={() => startStepTimer(item.time)}>
+                <Text style={styles.timeText}>⏱ {item.time}</Text>
+              </TouchableOpacity>
             </View>
           ))}
         </View>
@@ -137,6 +151,14 @@ const CommunityRecipeDetailScreen = ({ navigation, route }) => {
               Reset
             </Button>
           </View>
+        </View>
+
+        <View>
+          <Rating
+            startingValue={0}
+            onFinishRating={ratingCompleted}
+            style={{ paddingVertical: 10 }}
+          />
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -195,5 +217,11 @@ const styles = StyleSheet.create({
   },
   timerButton: {
     marginHorizontal: 4,
+  },
+  ratingNote: {
+    fontSize: 12,
+    color: '#999',
+    marginTop: 8,
+    textAlign: 'center',
   },
 });
