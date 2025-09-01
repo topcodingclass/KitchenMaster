@@ -47,9 +47,9 @@ const App = () => {
           <Stack.Screen name="Food Detail" component={FoodDetailScreen} />
           <Stack.Screen name="Scan Result" component={FoodScanResultScreen} />
           <Stack.Screen name="Recipe List" component={RecipeListScreen} />
-          <Stack.Screen name="RecipeScreen" component={RecipeScreen} />
+          <Stack.Screen name="Recipe Detail" component={RecipeScreen} />
           <Stack.Screen name="Community Recipes" component={CommunityRecipeScreen} />
-          <Stack.Screen name="CommunityRecipeDetail" component={CommunityRecipeDetailScreen} />
+          <Stack.Screen name="Community Recipe Detail" component={CommunityRecipeDetailScreen} />
         </Stack.Navigator>
       </NavigationContainer>
     </PaperProvider>
