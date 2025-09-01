@@ -1,6 +1,6 @@
 import React, { useEffect, useLayoutEffect, useState } from 'react';
-import { TouchableOpacity, View, StyleSheet, Modal, FlatList } from 'react-native';
-import { TextInput,Text, Provider, Button } from 'react-native-paper';
+import { TouchableOpacity, View, Modal, FlatList } from 'react-native';
+import { TextInput, Text, Provider, Button } from 'react-native-paper';
 import { doc, updateDoc, deleteDoc, addDoc, collection, getDocs, query, where, Timestamp } from 'firebase/firestore';
 import { db } from '../firebase';
 
@@ -24,10 +24,8 @@ const FoodDetailScreen = ({ route, navigation }) => {
 
     navigation.setOptions({
       headerTitle: () => (
-        <View style={{ flexDirection: 'column', alignItems: 'center' }}>
-          <Text style={{ fontSize: 13, fontWeight: 'bold', color: 'black' }}>
-            {name}
-          </Text>
+        <View style={{ alignItems: 'center' }}>
+          <Text style={{ fontSize: 13, fontWeight: 'bold' }}>{name}</Text>
           {formattedDate !== '' && (
             <Text style={{ fontSize: 12, color: 'gray' }}>{formattedDate}</Text>
           )}
@@ -36,20 +34,15 @@ const FoodDetailScreen = ({ route, navigation }) => {
     });
   }, [navigation, food, name]);
 
-  const fetchStorages = async () => {
-    try {
-      const querySnapshot = await getDocs(collection(db, "storages"));
-      const loadedStorages = querySnapshot.docs.map(doc => {
-        const data = doc.data();
-        return { label: data.name, value: data.name };
-      });
-      setStorages(loadedStorages);
-    } catch (e) {
-      console.error("Error fetching storages: ", e);
-    }
-  };
-
   useEffect(() => {
+    const fetchStorages = async () => {
+      try {
+        const querySnapshot = await getDocs(collection(db, "storages"));
+        setStorages(querySnapshot.docs.map(doc => ({ label: doc.data().name, value: doc.data().name })));
+      } catch (e) {
+        console.error("Error fetching storages: ", e);
+      }
+    };
     fetchStorages();
   }, []);
 
@@ -64,6 +57,7 @@ const FoodDetailScreen = ({ route, navigation }) => {
         storage,
         scannedDate: Timestamp.fromDate(new Date()),
       });
+      navigation.navigate('Food List');
     } catch (e) {
       console.log(e.message);
     }
@@ -79,13 +73,13 @@ const FoodDetailScreen = ({ route, navigation }) => {
   };
 
   const addStorage = async () => {
+    if (!storageID.trim()) return;
     try {
-      if (storageID.trim() === '') return;
       await addDoc(collection(db, 'storages'), { name: storageID.trim() });
       setStorages([...storages, { label: storageID.trim(), value: storageID.trim() }]);
       setStorageID('');
     } catch (e) {
-      console.error('Error adding document: ', e);
+      console.error('Error adding storage: ', e);
     }
   };
 
@@ -104,151 +98,70 @@ const FoodDetailScreen = ({ route, navigation }) => {
 
   return (
     <Provider>
-      <View style={styles.container}>
-        <TextInput label="Name"value={name} onChangeText={setName} mode = "outlined" style={{marginTop:12}} />
+      <View style={{ flex: 1, padding: 16 }}>
+        <TextInput label="Name" value={name} onChangeText={setName} mode="outlined" style={{ marginBottom: 12 }} />
+        <TextInput label="Quantity" value={quantity} onChangeText={setQuantity} mode="outlined" style={{ marginBottom: 12 }} />
+        <TextInput label="Expiration Date" value={expirationDate} onChangeText={setExpirationDate} mode="outlined" style={{ marginBottom: 12 }} />
+        <TextInput label="Type" value={type} onChangeText={setType} mode="outlined" style={{ marginBottom: 12 }} />
+        <TextInput label="Weight in Pounds" value={weightLB} onChangeText={setWeightLB} mode="outlined" style={{ marginBottom: 12 }} />
 
-        <TextInput label="Quantity"value={quantity} onChangeText={setQuantity} mode = "outlined" style={{marginTop:12}} />
+        <Text variant="titleMedium" style={{ marginVertical: 30 }}>Storage: {storage}</Text>
 
-        <TextInput label="Expiration Date"value={expirationDate} onChangeText={setExpirationDate}  mode = "outlined" style={{marginTop:12}} />
-
-        <TextInput label="Type"value={type} onChangeText={setType}  mode = "outlined" style={{marginTop:12}} />
-
-        <TextInput label="Weight in Pounds:"value={weightLB} onChangeText={setWeightLB}  mode = "outlined" style={{marginTop:12}} />
-
-        <Text variant="titleMedium">Storage:</Text>
-        <Text variant="titleSmall" style={{ marginLeft:60, marginBottom:10 }}>{storage}</Text>
-
-
-        <Button icon ="file-cabinet"mode="contained-tonal" onPress={() => setModalVisible(true)}>
+        <Button icon="file-cabinet" mode="contained-tonal" onPress={() => setModalVisible(true)} style={{ marginBottom: 20 }}>
           Select Storage
         </Button>
-        
 
+        {/* Modal for storage selection */}
         <Modal visible={modalVisible} transparent animationType="slide">
-          <View style={styles.modalBackground}>
-            <View style={styles.modalContainer}>
-              <Text variant="titleMedium">Select Existing Storage</Text>
+          <View style={{ flex: 1, justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.4)', padding: 16 }}>
+            <View style={{ backgroundColor: 'white', borderRadius: 8, padding: 16 }}>
+              <Text variant="titleMedium" style={{ marginBottom: 12 }}>Select Existing Storage</Text>
+
               <FlatList
                 data={storages}
                 keyExtractor={(item) => item.value}
                 renderItem={({ item }) => (
-                  <View style={styles.storageRow}>
-                    <TouchableOpacity
-                      style={styles.selectButton}
-                      onPress={() => {
-                        setStorage(item.value);
-                        setModalVisible(false);
-                      }}
-                    >
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 8 }}>
+                    <TouchableOpacity onPress={() => { setStorage(item.value); setModalVisible(false); }}>
                       <Text>{item.label}</Text>
                     </TouchableOpacity>
-                    <TouchableOpacity
-                      style={styles.deleteButton}
-                      onPress={() => deleteStorage(item.value)}
-                    >
-                      <Text style={{ color: 'white' }}>Delete</Text>
-                    </TouchableOpacity>
+                    <Button mode="contained" onPress={() => deleteStorage(item.value)}>Delete</Button>
                   </View>
                 )}
               />
 
-<View style = {{flexDirection:'row',justifyContent:'space-between',marginTop:55,alignItems:"center"}}>
-              <TextInput
-                placeholder="New Storage Name"
-                value={storageID}
-                onChangeText={setStorageID}
-                mode="outlined"
-                style={{flex:1,marginRight:10}}
-              />
-              
-              <Button icon = "archive-plus-outline"mode = "contained-tonal" onPress={addStorage}>
-                Add Storage
+              <View style={{ flexDirection: 'row', marginTop: 16 }}>
+                <TextInput
+                  placeholder="New Storage Name"
+                  value={storageID}
+                  onChangeText={setStorageID}
+                  mode="outlined"
+                  style={{ flex: 1, marginRight: 8 }}
+                />
+                <Button icon="archive-plus-outline" mode="contained-tonal" onPress={addStorage}>
+                  Add
+                </Button>
+              </View>
+
+              <Button mode="contained" style={{ marginTop: 20 }} onPress={() => setModalVisible(false)}>
+                Close
               </Button>
-
-</View>
-
-              
-              
-
-
-              <TouchableOpacity style={styles.button} onPress={() => setModalVisible(false)}>
-                <Text style={styles.text}>Close</Text>
-              </TouchableOpacity>
             </View>
           </View>
         </Modal>
+
         
-        
-        <View style={styles.bottomButtons}>
-          <Button mode="contained" onPress={saveFood} style={styles.actionButton}>
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 20 }}>
+          <Button mode="contained" style={{ flex: 1, marginRight: 8 }} onPress={saveFood}>
             Save
           </Button>
-          <Button mode="contained" onPress={deleteFood} style={styles.actionButton}>
+          <Button mode="contained" style={{ flex: 1, marginLeft: 8 }} onPress={deleteFood}>
             Delete
           </Button>
         </View>
-
       </View>
     </Provider>
   );
 };
 
 export default FoodDetailScreen;
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    padding: 10,
-    backgroundColor: '#fff',
-  },
-  input: {
-    backgroundColor: 'white',
-    padding: 12,
-    marginVertical: 8,
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: '#ccc',
-  },
-  button: {
-    backgroundColor: 'rgb(124, 177, 255)',
-    padding: 14,
-    borderRadius: 10,
-    marginVertical: 10,
-  },
-  text: {
-    textAlign: 'center',
-    color: 'white',
-    fontWeight: '600',
-  },
-  modalBackground: {
-    flex: 1,
-    justifyContent: 'center',
-    backgroundColor: 'rgba(0,0,0,0.4)',
-  },
-  modalContainer: {
-    backgroundColor: 'white',
-    marginHorizontal: 20,
-    borderRadius: 10,
-    padding: 20,
-  },
-  storageRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderColor: '#eee',
-  },
-  bottomButtons: {
-  position: 'absolute',
-  bottom: 40,
-  left: 20,
-  right: 20,
-  flexDirection: 'row',
-  justifyContent: 'space-between',
-},
-actionButton: {
-  flex: 1,
-  marginHorizontal: 5,
-},
-});
