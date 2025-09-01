@@ -1,8 +1,9 @@
-import React, { useEffect, useState, useLayoutEffect } from 'react';
+import React, { useEffect, useState, useLayoutEffect, useCallback } from 'react';
 import { StyleSheet, View, SafeAreaView, FlatList, Modal, TouchableOpacity } from 'react-native';
-import { Text, Divider, Button, TextInput } from 'react-native-paper';
+import { Text, Divider, Button, TextInput, Snackbar } from 'react-native-paper';
 import { collection, getDocs, addDoc, deleteDoc, updateDoc, doc, query, where } from 'firebase/firestore';
 import { db } from '../firebase';
+import { useFocusEffect } from '@react-navigation/native';
 
 const StorageListScreen = ({ navigation }) => {
   const [storages, setStorages] = useState([]);
@@ -10,6 +11,8 @@ const StorageListScreen = ({ navigation }) => {
   const [storageNameInput, setStorageNameInput] = useState('');
   const [editingId, setEditingId] = useState(null);
   const [editName, setEditName] = useState('');
+  const [snackbarVisible, setSnackbarVisible] = useState(false);
+  const [snackbarMessage, setSnackbarMessage] = useState('');
 
   useLayoutEffect(() => {
     navigation.setOptions({
@@ -45,6 +48,12 @@ const StorageListScreen = ({ navigation }) => {
     }
   };
 
+  useFocusEffect(
+    useCallback(() => {
+      fetchStorages();
+    }, [])
+  );
+
   useEffect(() => {
     fetchStorages();
   }, []);
@@ -61,17 +70,24 @@ const StorageListScreen = ({ navigation }) => {
     }
   };
 
-  const deleteStorage = async (storageName) => {
-    try {
-      const q = query(collection(db, 'storages'), where('name', '==', storageName));
-      const snapshot = await getDocs(q);
-      const deletePromises = snapshot.docs.map((docItem) => deleteDoc(docItem.ref));
-      await Promise.all(deletePromises);
-      fetchStorages();
-    } catch (e) {
-      console.error('Error deleting storage: ', e);
+
+const deleteStorage = async (storageName, itemCount) => {
+  try {
+    if (itemCount > 0) {
+      alert("You must delete all items in this storage first");
+      return;
     }
-  };
+
+    const q = query(collection(db, 'storages'), where('name', '==', storageName));
+    const snapshot = await getDocs(q);
+    const deletePromises = snapshot.docs.map((docItem) => deleteDoc(docItem.ref));
+    await Promise.all(deletePromises);
+    fetchStorages();
+  } catch (e) {
+    console.error('Error deleting storage: ', e);
+  }
+};
+
 
   const startEdit = (item) => {
     setEditingId(item.id);
@@ -123,7 +139,7 @@ const StorageListScreen = ({ navigation }) => {
           <Button
             mode="contained"
             buttonColor="red"
-            onPress={() => deleteStorage(item.name)}
+            onPress={() => deleteStorage(item.name, item.itemCount)}
           >
             Delete
           </Button>
@@ -136,7 +152,7 @@ const StorageListScreen = ({ navigation }) => {
     <View>
       <TouchableOpacity
         style={styles.storageCard}
-        onPress={() => navigation.navigate('StorageDetail', { storage: item })}
+        onPress={() => navigation.navigate('Storage Detail', { storage: item })}
       >
         <Text variant="titleMedium">{item.name}</Text>
         <Text variant="bodySmall" style={{ color: 'gray' }}>
@@ -155,11 +171,9 @@ const StorageListScreen = ({ navigation }) => {
         keyExtractor={(item) => item.id}
       />
 
-      <View style={{ flexDirection: "row", justifyContent: 'space-around' }}>
-        <Button icon="file-cabinet" mode="contained" onPress={() => setModalVisible(true)}>
-          Manage Storages
-        </Button>
-      </View>
+      <Button style={{ marginHorizontal: 30 }} icon="file-cabinet" mode="contained" onPress={() => setModalVisible(true)}>
+        Manage Storages
+      </Button>
 
       <Modal visible={modalVisible} transparent animationType="slide">
         <View style={styles.modalBackground}>
@@ -191,6 +205,14 @@ const StorageListScreen = ({ navigation }) => {
           </View>
         </View>
       </Modal>
+
+      <Snackbar
+        visible={snackbarVisible}
+        onDismiss={() => setSnackbarVisible(false)}
+        duration={3000}
+      >
+        {snackbarMessage}
+      </Snackbar>
     </SafeAreaView>
   );
 };
