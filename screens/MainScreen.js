@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useLayoutEffect } from 'react';
 import {
   View,
   StyleSheet,
@@ -15,6 +15,7 @@ const MainScreen = ({ navigation }) => {
 
   const [userName, setUserName] = useState('');
   const [todayMeal, setTodayMeal] = useState('');
+  const [todayName, setTodayName] = useState(''); // ✅ store current day name
   const [expiringFood, setExpiringFood] = useState([]);
   const [allExpiringFood, setAllExpiringFood] = useState([]);
   const [showAllExpiring, setShowAllExpiring] = useState(false);
@@ -22,6 +23,29 @@ const MainScreen = ({ navigation }) => {
 
   const [notifications, setNotifications] = useState([]);
   const [showNotifications, setShowNotifications] = useState(false);
+
+  useLayoutEffect(() => {
+    navigation.setOptions({
+      headerRight: () => (
+        <TouchableOpacity
+          style={styles.notificationButton}
+          onPress={() => setShowNotifications(prev => !prev)}
+        >
+          <Image
+            source={{
+              uri: 'https://assets.streamlinehq.com/image/private/w_300,h_300,ar_1/f_auto/v1/icons/notifications/bell-oidqm6rhvuc2en0khzvmw2.png/bell-ligh2sop7xi1hvsmujni.png?_a=DATAg1AAZAA0',
+            }}
+            style={{ width: 28, height: 28 }}
+          />
+          {notifications.length > 0 && (
+            <View style={styles.notifBadge}>
+              <Text style={styles.notifBadgeText}>{notifications.length}</Text>
+            </View>
+          )}
+        </TouchableOpacity>
+      ),
+    });
+  }, [navigation, notifications]);
 
   // Fetch user name
   useEffect(() => {
@@ -57,8 +81,10 @@ const MainScreen = ({ navigation }) => {
             'Sunday', 'Monday', 'Tuesday', 'Wednesday',
             'Thursday', 'Friday', 'Saturday'
           ];
-          const todayName = days[new Date().getDay()];
-          setTodayMeal(data[todayName] || 'No meal planned for today');
+          const today = days[new Date().getDay()];
+
+          setTodayName(today); // ✅ save the day
+          setTodayMeal(data[today] || 'No meal planned for today');
         } else {
           setTodayMeal('No meal planned for today');
         }
@@ -103,7 +129,7 @@ const MainScreen = ({ navigation }) => {
     fetchExpiringFood();
   }, [userID]);
 
-  // Fetch notifications (single doc with multiple fields)
+  // Fetch notifications
   useEffect(() => {
     if (!userID) return;
 
@@ -113,9 +139,9 @@ const MainScreen = ({ navigation }) => {
         const notifSnapshot = await getDocs(notifColRef);
 
         if (!notifSnapshot.empty) {
-          const notifDoc = notifSnapshot.docs[0]; // the single document
+          const notifDoc = notifSnapshot.docs[0]; 
           const data = notifDoc.data();
-          const sortedKeys = Object.keys(data).sort(); // numeric order
+          const sortedKeys = Object.keys(data).sort();
           const notifList = sortedKeys.map(key => data[key]);
           setNotifications(notifList);
         } else {
@@ -153,7 +179,6 @@ const MainScreen = ({ navigation }) => {
   const navigateToCommunity = () => navigation.navigate('FoodCommunity');
   const navigateToPlanner = () => navigation.navigate('MealPlanner');
   const navigateToStorage = () => navigation.navigate('FoodStorage');
-  const navigateToAdd = () => navigation.navigate('FoodAdd');
 
   // Toggle expiring items view
   const handleSeeAllExpiring = () => {
@@ -166,26 +191,6 @@ const MainScreen = ({ navigation }) => {
 
   return (
     <View style={styles.container}>
-      {/* Bell button */}
-      <View style={{ marginBottom: 10, alignItems: 'flex-end' }}>
-        <TouchableOpacity
-          style={styles.notificationButton}
-          onPress={() => setShowNotifications(prev => !prev)}
-        >
-          <Image
-            source={{
-              uri: 'https://assets.streamlinehq.com/image/private/w_300,h_300,ar_1/f_auto/v1/icons/notifications/bell-oidqm6rhvuc2en0khzvmw2.png/bell-ligh2sop7xi1hvsmujni.png?_a=DATAg1AAZAA0',
-            }}
-            style={{ width: 28, height: 28 }}
-          />
-          {notifications.length > 0 && (
-            <View style={styles.notifBadge}>
-              <Text style={styles.notifBadgeText}>{notifications.length}</Text>
-            </View>
-          )}
-        </TouchableOpacity>
-      </View>
-
       {/* Notifications Tab */}
       {showNotifications && (
         <Card style={styles.notificationsTab}>
@@ -224,7 +229,9 @@ const MainScreen = ({ navigation }) => {
       <Card style={styles.card}>
         <Card.Content style={styles.cardContent}>
           <Text style={styles.sectionTitle}>Today’s Meal Plan</Text>
-          <Text style={styles.itemText}>{todayMeal}</Text>
+          <Text style={styles.itemText}>
+            {todayName ? `${todayName}: ${todayMeal}` : todayMeal}
+          </Text>
           <Button mode="outlined" onPress={navigateToPlanner}>Meal Planner</Button>
         </Card.Content>
       </Card>
@@ -248,10 +255,6 @@ const MainScreen = ({ navigation }) => {
             source={{ uri: 'https://img.icons8.com/ios-filled/50/000000/camera.png' }}
             style={styles.cameraIcon}
           />
-        </Button>
-
-        <Button onPress={navigateToAdd}>
-          <Text style={styles.navText}>Add{'\n'}Recipe</Text>
         </Button>
       </View>
     </View>
