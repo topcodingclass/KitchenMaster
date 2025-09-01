@@ -23,7 +23,7 @@ const FoodScanResultScreen = ({ route, navigation }) => {
       const foodData = JSON.parse(result);
 
       setName(foodData.name || "");
-      setQuantity(foodData.quantity || 0);
+      setQuantity(foodData.quantity || 1);
       setExpirationDate(foodData.expirationDate || "");
       setType(foodData.type || "");
       setWeightLB(foodData.weightLB || 0);
@@ -95,7 +95,11 @@ const FoodScanResultScreen = ({ route, navigation }) => {
             keyboardType="numeric"
             onChangeText={(text) => setWeightLB(parseFloat(text) || 0)}
           />
+
+          <Text variant="titleMedium" style={{marginTop:30}}>Storage: {selectedStorage}</Text>
         </View>
+
+
 
         <Button mode="contained-tonal" icon="file-cabinet" style={styles.button} onPress={() => setModalVisible(true)}>
           Select Storage
