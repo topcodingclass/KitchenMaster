@@ -70,7 +70,7 @@ export default function FoodScanScreen({ navigation }) {
 
       const text = response.data.choices[0].message.content;
       setResult(text);
-      navigation.navigate('FoodScanResult', { result: text });
+      navigation.navigate('Scan Result', { result: text });
     } catch (error) {
       console.error('OpenAI error:', error.response?.data || error.message);
       setResult('Failed to identify the food.');
