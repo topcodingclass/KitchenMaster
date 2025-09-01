@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   StyleSheet,
   View,
@@ -10,6 +10,13 @@ import {
   TextInput,
 } from "react-native";
 import { Button } from "react-native-paper";
+import { auth, db } from "../firebase"; // ✅ Import Firebase config
+import {
+  doc,
+  getDoc,
+  setDoc,
+  updateDoc,
+} from "firebase/firestore";
 
 const MealPlannerScreen = ({ navigation }) => {
   const days = [
@@ -22,7 +29,12 @@ const MealPlannerScreen = ({ navigation }) => {
     { short: "S", rest: "at", full: "Sat" },
   ];
 
-  // Meals per day
+  const today = new Date();
+  const todayIndex = today.getDay();
+  const [selectedDay, setSelectedDay] = useState(
+    ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][todayIndex]
+  );
+
   const [mealsByDay, setMealsByDay] = useState({
     Sun: ["Your meal"],
     Mon: ["Your meal"],
@@ -33,17 +45,14 @@ const MealPlannerScreen = ({ navigation }) => {
     Sat: ["Your meal"],
   });
 
-  const [selectedDay, setSelectedDay] = useState("Thu");
   const [modalVisible, setModalVisible] = useState(false);
   const [currentMeal, setCurrentMeal] = useState("");
   const [editingIndex, setEditingIndex] = useState(null);
-
-  // Track current date
-  const [currentDate, setCurrentDate] = useState(new Date());
+  const [currentDate, setCurrentDate] = useState(today);
 
   const currentMeals = mealsByDay[selectedDay];
+  const user = auth.currentUser;
 
-  // Format date for display
   const formatDate = (date) => {
     return date.toLocaleDateString("en-US", {
       weekday: "short",
@@ -51,6 +60,38 @@ const MealPlannerScreen = ({ navigation }) => {
       day: "numeric",
       year: "numeric",
     });
+  };
+
+  useEffect(() => {
+    const fetchMeals = async () => {
+      if (!user) return;
+
+      try {
+        const docRef = doc(db, "mealPlans", user.uid);
+        const docSnap = await getDoc(docRef);
+
+        if (docSnap.exists()) {
+          setMealsByDay(docSnap.data());
+        } else {
+          await setDoc(docRef, mealsByDay);
+        }
+      } catch (error) {
+        console.log("Error fetching meals:", error);
+      }
+    };
+
+    fetchMeals();
+  }, [user]);
+
+  const saveMealsToFirestore = async (updatedMeals) => {
+    if (!user) return;
+
+    try {
+      const docRef = doc(db, "mealPlans", user.uid);
+      await updateDoc(docRef, updatedMeals);
+    } catch (error) {
+      console.log("Error saving meals:", error);
+    }
   };
 
   const handleNextWeek = () => {
@@ -65,18 +106,32 @@ const MealPlannerScreen = ({ navigation }) => {
     setCurrentDate(previousWeek);
   };
 
-  const handleSaveMeal = () => {
+  const handleDayPress = (dayIndex, dayFull) => {
+    const newDate = new Date(currentDate);
+    const weekStart = new Date(newDate);
+    weekStart.setDate(newDate.getDate() - newDate.getDay());
+    weekStart.setDate(weekStart.getDate() + dayIndex);
+    setCurrentDate(weekStart);
+    setSelectedDay(dayFull);
+  };
+
+  const handleSaveMeal = async () => {
     if (currentMeal.trim() === "") {
       setModalVisible(false);
       return;
     }
+
     const updatedMeals = [...currentMeals];
     if (editingIndex !== null) {
       updatedMeals[editingIndex] = currentMeal;
     } else {
       updatedMeals.push(currentMeal);
     }
-    setMealsByDay({ ...mealsByDay, [selectedDay]: updatedMeals });
+
+    const newMealsByDay = { ...mealsByDay, [selectedDay]: updatedMeals };
+    setMealsByDay(newMealsByDay);
+    await saveMealsToFirestore({ [selectedDay]: updatedMeals });
+
     setModalVisible(false);
     setCurrentMeal("");
     setEditingIndex(null);
@@ -96,17 +151,8 @@ const MealPlannerScreen = ({ navigation }) => {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: "#f7f7f7" }}>
-      <ScrollView contentContainerStyle={{ flexGrow: 1, padding: 15 }}>
-        {/* Back Button */}
-        <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
-          <Text style={styles.backBtnText}>Back</Text>
-        </TouchableOpacity>
-
-        {/* Title */}
-        <View style={styles.header}>
-          <Text style={styles.title}>Welcome to your{"\n"}meal planner</Text>
-        </View>
-
+      {/* Content Scroll */}
+      <ScrollView contentContainerStyle={{ flexGrow: 1, padding: 15, paddingBottom: 120 }}>
         {/* Date Display + Week Navigation */}
         <View style={styles.dateRow}>
           <TouchableOpacity style={styles.weekBtn} onPress={handlePreviousWeek}>
@@ -129,7 +175,7 @@ const MealPlannerScreen = ({ navigation }) => {
                 styles.dayBox,
                 selectedDay === day.full && styles.selectedDay,
               ]}
-              onPress={() => setSelectedDay(day.full)}
+              onPress={() => handleDayPress(index, day.full)}
             >
               <Text style={styles.dayShort}>{day.short}</Text>
               <Text style={styles.dayRest}>{day.rest}</Text>
@@ -146,20 +192,17 @@ const MealPlannerScreen = ({ navigation }) => {
             </TouchableOpacity>
           ))}
         </View>
-
-        {/* Bottom Buttons */}
-        <View style={styles.bottomButtons}>
-          <TouchableOpacity style={styles.bottomBtn} onPress={handleAddMeal}>
-            <Text style={styles.bottomBtnText}>Add meal{"\n"}from my food</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.bottomBtn}>
-            <Text style={styles.bottomBtnText}>
-              Add meal{"\n"}from community screen
-            </Text>
-          </TouchableOpacity>
-        </View>
       </ScrollView>
+
+      {/* Fixed Bottom Buttons */}
+      <View style={styles.bottomButtons}>
+        <Button style={{ flex: 1, marginRight: 5 }} mode="outlined" onPress={handleAddMeal}>
+          Add meal from my food
+        </Button>
+        <Button style={{ flex: 1, marginLeft: 5 }} mode="outlined">
+          Add meal from community recipes
+        </Button>
+      </View>
 
       {/* Modal for adding/editing meal */}
       <Modal visible={modalVisible} animationType="slide" transparent>
@@ -174,6 +217,16 @@ const MealPlannerScreen = ({ navigation }) => {
               value={currentMeal}
               onChangeText={setCurrentMeal}
             />
+
+            {/* ✅ My Recipes Button */}
+            <Button
+              mode="outlined"
+              style={styles.myRecipesBtn}
+              onPress={() => console.log("My Recipes clicked")}
+            >
+              My Recipes
+            </Button>
+
             <View style={styles.modalButtons}>
               <Button
                 mode="contained"
@@ -200,34 +253,6 @@ const MealPlannerScreen = ({ navigation }) => {
 export default MealPlannerScreen;
 
 const styles = StyleSheet.create({
-  backBtn: {
-    backgroundColor: "orange",
-    paddingHorizontal: 12,
-    paddingVertical: 5,
-    borderRadius: 5,
-    alignSelf: "flex-start",
-    marginBottom: 10,
-  },
-  backBtnText: {
-    color: "black",
-    fontWeight: "bold",
-    fontSize: 14,
-  },
-  header: {
-    alignItems: "center",
-    marginBottom: 10,
-  },
-  title: {
-    fontSize: 18,
-    fontWeight: "bold",
-    paddingVertical: 8,
-    paddingHorizontal: 15,
-    borderWidth: 1,
-    borderColor: "#aaa",
-    borderRadius: 10,
-    textAlign: "center",
-    backgroundColor: "#fff",
-  },
   dateRow: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -303,24 +328,12 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
   },
   bottomButtons: {
+    position: "absolute",
+    bottom: 15,
+    left: 15,
+    right: 15,
     flexDirection: "row",
     justifyContent: "space-between",
-    marginTop: 10,
-  },
-  bottomBtn: {
-    flex: 1,
-    marginHorizontal: 5,
-    backgroundColor: "#fff",
-    borderWidth: 1,
-    borderColor: "#ccc",
-    paddingVertical: 10,
-    borderRadius: 12,
-    alignItems: "center",
-  },
-  bottomBtnText: {
-    textAlign: "center",
-    fontSize: 14,
-    color: "#333",
   },
   modalOverlay: {
     flex: 1,
@@ -347,6 +360,10 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     padding: 10,
     marginBottom: 15,
+  },
+  myRecipesBtn: {
+    marginBottom: 15,
+    borderColor: "#007BFF",
   },
   modalButtons: {
     flexDirection: "row",
