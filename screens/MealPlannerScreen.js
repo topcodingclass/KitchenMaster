@@ -10,13 +10,8 @@ import {
   TextInput,
 } from "react-native";
 import { Button } from "react-native-paper";
-import { auth, db } from "../firebase"; // ✅ Import Firebase config
-import {
-  doc,
-  getDoc,
-  setDoc,
-  updateDoc,
-} from "firebase/firestore";
+import { auth, db } from "../firebase"; // ✅ Firebase config
+import { doc, getDoc, setDoc, updateDoc } from "firebase/firestore";
 
 const MealPlannerScreen = ({ navigation }) => {
   const days = [
@@ -137,12 +132,6 @@ const MealPlannerScreen = ({ navigation }) => {
     setEditingIndex(null);
   };
 
-  const handleEditMeal = (index) => {
-    setCurrentMeal(currentMeals[index]);
-    setEditingIndex(index);
-    setModalVisible(true);
-  };
-
   const handleAddMeal = () => {
     setCurrentMeal("");
     setEditingIndex(null);
@@ -171,10 +160,7 @@ const MealPlannerScreen = ({ navigation }) => {
           {days.map((day, index) => (
             <TouchableOpacity
               key={index}
-              style={[
-                styles.dayBox,
-                selectedDay === day.full && styles.selectedDay,
-              ]}
+              style={[styles.dayBox, selectedDay === day.full && styles.selectedDay]}
               onPress={() => handleDayPress(index, day.full)}
             >
               <Text style={styles.dayShort}>{day.short}</Text>
@@ -187,7 +173,17 @@ const MealPlannerScreen = ({ navigation }) => {
         <View style={styles.mealBox}>
           <Text style={styles.mealHeader}>{selectedDay}’s Meals</Text>
           {currentMeals.map((meal, index) => (
-            <TouchableOpacity key={index} onPress={() => handleEditMeal(index)}>
+            <TouchableOpacity
+              key={index}
+              onPress={() =>
+                navigation.navigate("MealDetail", {
+                  mealName: meal,
+                  mealDetails: "Detail of meal",
+                  date: currentDate.toISOString().split("T")[0],
+                  mealType: selectedDay + " Meal",
+                })
+              }
+            >
               <Text style={styles.mealText}>- {meal}</Text>
             </TouchableOpacity>
           ))}
@@ -218,7 +214,6 @@ const MealPlannerScreen = ({ navigation }) => {
               onChangeText={setCurrentMeal}
             />
 
-            {/* ✅ My Recipes Button */}
             <Button
               mode="outlined"
               style={styles.myRecipesBtn}
@@ -228,11 +223,7 @@ const MealPlannerScreen = ({ navigation }) => {
             </Button>
 
             <View style={styles.modalButtons}>
-              <Button
-                mode="contained"
-                style={styles.modalBtn}
-                onPress={handleSaveMeal}
-              >
+              <Button mode="contained" style={styles.modalBtn} onPress={handleSaveMeal}>
                 Save
               </Button>
               <Button
