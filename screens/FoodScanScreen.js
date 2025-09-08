@@ -1,188 +1,132 @@
-import { CameraView, useCameraPermissions } from "expo-camera";
-import { useState } from "react";
-import { StyleSheet, View } from "react-native";
-import { Button, Text, ActivityIndicator } from "react-native-paper";
-import axios from "axios";
+import React, { useEffect, useRef, useState } from 'react';
+import { View, Image } from 'react-native';
+import { Button, Text, ActivityIndicator } from 'react-native-paper';
+import { CameraView, useCameraPermissions } from 'expo-camera'; // Expo SDK 51+
+import * as ImagePicker from 'expo-image-picker'; // optional, for simulator fallback
 
-export default function FoodScanScreen({ navigation }) {
+export default function ScanAndSnap() {
+  const cameraRef = useRef(null);
   const [permission, requestPermission] = useCameraPermissions();
-  const [scanned, setScanned] = useState(false);
+
+  const [facing, setFacing] = useState('back');
+  const [photoUri, setPhotoUri] = useState(null);
+  const [photoBase64, setPhotoBase64] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [product, setProduct] = useState(null);
-  const [cameraKey, setCameraKey] = useState(0);
 
-  if (!permission) return <View />;
-  if (!permission.granted) {
-    return (
-      <View style={styles.permissionContainer}>
-        <Text style={styles.message}>
-          We need your permission to use the camera
-        </Text>
-        <Button mode="contained" onPress={requestPermission}>
-          Grant Permission
-        </Button>
-      </View>
-    );
-  }
+  // barcode state
+  const [barcode, setBarcode] = useState(null); // { data, type }
+  const [barcodePaused, setBarcodePaused] = useState(false); // prevent spamming
 
-  const simplifyCategory = (raw) => {
-    if (!raw) return "Other";
-    raw = raw.toLowerCase();
-    if (raw.includes("beverage") || raw.includes("drink") || raw.includes("soda")) return "Beverages";
-    if (raw.includes("snack") || raw.includes("chips") || raw.includes("candy") || raw.includes("cookie")) return "Snacks";
-    if (raw.includes("meat") || raw.includes("poultry") || raw.includes("fish") || raw.includes("seafood")) return "Meat & Fish";
-    if (raw.includes("dairy") || raw.includes("cheese") || raw.includes("milk") || raw.includes("yogurt")) return "Dairy";
-    if (raw.includes("cereal") || raw.includes("grain") || raw.includes("bread") || raw.includes("pasta")) return "Grains";
-    if (raw.includes("fruit") || raw.includes("vegetable") || raw.includes("plant") || raw.includes("veggie")) return "Produce";
-    if (raw.includes("sauce") || raw.includes("condiment") || raw.includes("dressing")) return "Condiments & Sauces";
-    if (raw.includes("frozen")) return "Frozen Foods";
-    if (raw.includes("bakery") || raw.includes("cake") || raw.includes("pastry")) return "Bakery";
-    if (raw.includes("drink powder") || raw.includes("powder")) return "Powders & Mixes";
-    return "Other";
-  };
+  useEffect(() => {
+    if (!permission) requestPermission();
+  }, [permission]);
 
-  const handleBarcodeScanned = async ({ data }) => {
-    if (scanned) return;
-    setScanned(true);
-    setLoading(true);
-
+  const takePicture = async () => {
     try {
-      const response = await axios.get(
-        `https://world.openfoodfacts.org/api/v0/product/${data}.json`
-      );
-
-      let parsedResult = {
-        name: "Unknown",
-        quantity: 1,
-        expirationDate: "N/A",
-        type: "Other",
-        mass: "N/A",
-      };
-
-      if (response.data.status === 1) {
-        const p = response.data.product;
-
-        let cleanName = (p.product_name || "Unknown").replace(/\s*imp\.?$/i, "").trim();
-
-        let quantity = 1;
-        if (p.packaging_quantity) {
-          const q = parseInt(p.packaging_quantity);
-          if (!isNaN(q) && q > 0) quantity = q;
-        }
-
-        let mass = "N/A";
-        if (p.product_quantity && p.product_quantity_unit) {
-          let value = parseFloat(p.product_quantity);
-          const unit = p.product_quantity_unit.toLowerCase();
-
-          if (!isNaN(value)) {
-            if (unit.includes("kg")) value = value * 2.20462;
-            else if (unit.includes("g")) value = value * 0.035274;
-            else if (unit.includes("oz")) value = value;
-            else if (unit.includes("lb")) value = value;
-            if (unit.includes("g") || (unit.includes("oz") && value >= 16)) {
-              mass = `${Math.round(value / 16 * 10) / 10} lb`;
-            } else if (unit.includes("kg") || unit.includes("lb") || value >= 16) {
-              mass = `${Math.round(value * 10) / 10} lb`;
-            } else {
-              mass = `${Math.round(value * 10) / 10} oz`;
-            }
-          }
-        }
-
-        let categoriesEn = p.categories_tags?.filter(c => c.startsWith("en:"));
-        let typeValue = categoriesEn && categoriesEn.length ? simplifyCategory(categoriesEn[0]) : "Other";
-
-        parsedResult = {
-          name: cleanName,
-          quantity,
-          expirationDate: p.expiration_date || "N/A",
-          type: typeValue,
-          mass,
-        };
+      setLoading(true);
+      setBarcode(null); // clear prior barcode result
+      const photo = await cameraRef.current?.takePictureAsync({ base64: true, quality: 0.8 });
+      if (photo?.uri) {
+        setPhotoUri(photo.uri);
+        setPhotoBase64(photo.base64 || null);
       }
-
-      setProduct(parsedResult);
-      navigation.navigate("Scan Result", { result: JSON.stringify(parsedResult) });
-    } catch (error) {
-      console.error("API error:", error.message);
-      const fallback = {
-        name: "Not found",
-        quantity: 1,
-        expirationDate: "N/A",
-        type: "Other",
-        mass: "N/A",
-      };
-      setProduct(fallback);
-      navigation.navigate("Scan Result", { result: JSON.stringify(fallback) });
     } finally {
       setLoading(false);
     }
   };
 
-  const handleScanAgain = () => {
-    setScanned(false);
-    setProduct(null);
-    setCameraKey(prev => prev + 1);
+  // Handle barcode hits from the live preview
+  const handleBarcodeScanned = ({ data, type }) => {
+    if (barcodePaused) return;
+    setBarcode({ data, type });
+    console.log("Barcode:", data)
+    setBarcodePaused(true);
+    // resume scanning after a short delay if you want continuous scanning:
+    setTimeout(() => setBarcodePaused(false), 1500);
   };
 
+  const sendToOpenAI = async (base64) => {
+    // your existing logic
+  };
+
+  // Optional: fallback on simulator (no real camera)
+  const pickFromLibraryOnSimulator = async () => {
+    const res = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaType.Images,
+      quality: 0.9,
+      base64: true,
+    });
+    if (!res.canceled) {
+      setPhotoUri(res.assets[0].uri);
+      setPhotoBase64(res.assets[0].base64 || null);
+    }
+  };
+
+  if (!permission?.granted) {
+    return (
+      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+        <Text>Please grant camera permission</Text>
+        <Button mode="contained" onPress={requestPermission} style={{ marginTop: 12 }}>
+          Grant Permission
+        </Button>
+        <Button mode="contained-tonal" onPress={pickFromLibraryOnSimulator} style={{ marginTop: 8 }}>
+          Pick From Library (Simulator)
+        </Button>
+      </View>
+    );
+  }
+
   return (
-    <View style={styles.container}>
+    <View style={{ flex: 1, padding: 16 }}>
+      {/* Live camera with barcode scanning */}
       <CameraView
-        key={cameraKey}
-        style={styles.camera}
-        facing="back"
-        onBarcodeScanned={handleBarcodeScanned}
+        ref={cameraRef}
+        style={{ flex: 1, borderRadius: 12, overflow: 'hidden' }}
+        facing={facing}
+        // Choose what to scan
         barcodeScannerSettings={{
-          barcodeTypes: ["ean13", "ean8", "upc_a", "upc_e"],
+          barcodeTypes: [
+            'qr', 'pdf417', 'aztec',
+            'ean13', 'ean8', 'upc_a', 'upc_e', 'code128', 'code39', 'code93', 'itf14'
+          ],
         }}
+        onBarcodeScanned={handleBarcodeScanned}
       />
 
-      {scanned && (
-        <View style={styles.resultContainer}>
-          {loading ? (
-            <ActivityIndicator size="large" />
-          ) : (
-            <>
-              <Text variant="titleMedium">{product?.name}</Text>
-              <Text>Category: {product?.type}</Text>
-              <Text>Quantity: {product?.quantity}</Text>
-              <Text>Expiration: {product?.expirationDate}</Text>
-              <Text>Mass: {product?.mass}</Text>
+      {/* Controls */}
+      <View style={{ flexDirection: 'row', marginTop: 12 }}>
+        <Button mode="contained" onPress={takePicture} style={{ flex: 1, marginRight: 8 }}>
+          {photoUri ? 'Retake Picture' : 'Take Picture'}
+        </Button>
+        {photoUri && (
+          <Button
+            mode="contained-tonal"
+            onPress={() => sendToOpenAI(photoBase64)}
+            style={{ flex: 1 }}
+            loading={loading}
+            disabled={loading}
+          >
+            Ask GPT
+          </Button>
+        )}
+      </View>
 
-              <Button
-                mode="contained"
-                style={{ marginTop: 10 }}
-                onPress={handleScanAgain}
-              >
-                Scan Again
-              </Button>
-            </>
-          )}
+      {/* Barcode result */}
+      {barcode && (
+        <View style={{ marginTop: 10 }}>
+          <Text variant="titleSmall">Barcode detected</Text>
+          <Text>Type: {barcode.type}</Text>
+          <Text selectable>Data: {barcode.data}</Text>
+        </View>
+      )}
+
+      {/* Photo preview */}
+      {photoUri && (
+        <View style={{ marginTop: 12, alignItems: 'center' }}>
+          <Image source={{ uri: photoUri }} style={{ width: '100%', height: 200, borderRadius: 12 }} />
+          {loading && <ActivityIndicator animating size="large" style={{ marginTop: 10 }} />}
         </View>
       )}
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: { flex: 1 },
-  permissionContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    padding: 20,
-  },
-  message: { marginBottom: 16 },
-  camera: { flex: 1 },
-  resultContainer: {
-    position: "absolute",
-    bottom: 30,
-    left: 20,
-    right: 20,
-    backgroundColor: "white",
-    padding: 15,
-    borderRadius: 10,
-    alignItems: "center",
-  },
-});
