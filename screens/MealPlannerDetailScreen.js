@@ -5,16 +5,58 @@ import {
   SafeAreaView,
   Text,
   TouchableOpacity,
+  TextInput,
+  Alert,
 } from "react-native";
 import { Button } from "react-native-paper";
+import { auth, db } from "../firebase"; // ✅ import firebase setup
+import { doc, getDoc, updateDoc } from "firebase/firestore";
 
-const MealDetailScreen = ({ navigation, route }) => {
-  const { mealName, mealDetails, date, mealType } = route.params;
+const MealPlannerDetailScreen = ({ navigation, route }) => {
+  const { mealName = "Meal’s Name", mealDetails = "Detail of meal", date, mealType } =
+    route.params || {};
 
+  const [mealDate, setMealDate] = useState(date || "2025-08-17");
+  const [mealTypeState, setMealTypeState] = useState(mealType || "Breakfast");
   const [details, setDetails] = useState(mealDetails);
 
-  const handleDeleteMeal = () => {
-    setDetails("Meal deleted!");
+  const user = auth.currentUser;
+
+  const handleDeleteMeal = async () => {
+    if (!user) {
+      Alert.alert("Error", "No user logged in.");
+      return;
+    }
+
+    try {
+      // 🔹 Load the mealPlan doc
+      const docRef = doc(db, "mealPlans", user.uid);
+      const docSnap = await getDoc(docRef);
+
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+
+        // 🔹 Identify the day from mealType (e.g., "Mon Meal" → "Mon")
+        const dayKey = mealTypeState.split(" ")[0];
+
+        if (data[dayKey]) {
+          // 🔹 Filter out the meal
+          const updatedMeals = data[dayKey].filter((m) => m !== mealName);
+
+          // 🔹 Update Firestore
+          await updateDoc(docRef, { [dayKey]: updatedMeals });
+
+          // 🔹 Update local state
+          setDetails("Meal deleted!");
+
+          // 🔹 Navigate back and refresh list
+          navigation.goBack();
+        }
+      }
+    } catch (error) {
+      console.log("Error deleting meal:", error);
+      Alert.alert("Error", "Could not delete meal.");
+    }
   };
 
   return (
@@ -30,8 +72,16 @@ const MealDetailScreen = ({ navigation, route }) => {
           </TouchableOpacity>
 
           <View style={styles.rightInputs}>
-            <Text style={styles.dateInput}>{date}</Text>
-            <Text style={styles.mealTypeInput}>{mealType}</Text>
+            <TextInput
+              style={styles.dateInput}
+              value={mealDate}
+              onChangeText={setMealDate}
+            />
+            <TextInput
+              style={styles.mealTypeInput}
+              value={mealTypeState}
+              onChangeText={setMealTypeState}
+            />
           </View>
         </View>
 
@@ -57,7 +107,7 @@ const MealDetailScreen = ({ navigation, route }) => {
   );
 };
 
-export default MealDetailScreen;
+export default MealPlannerDetailScreen;
 
 const styles = StyleSheet.create({
   container: {
