@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef, useLayoutEffect } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import { Card, Title, Paragraph, Text, Divider, Button } from 'react-native-paper';
+import { doc, setDoc } from 'firebase/firestore';
+import { db, auth } from '../firebase';
 
 const RecipeScreen = ({ navigation, route }) => {
   const { recipe } = route.params;
@@ -18,7 +20,6 @@ const RecipeScreen = ({ navigation, route }) => {
     });
   }, [navigation, recipe]);
 
-  
   useEffect(() => {
     if (isRunning && secondsLeft > 0) {
       intervalRef.current = setInterval(() => {
@@ -61,6 +62,31 @@ const RecipeScreen = ({ navigation, route }) => {
     setSecondsLeft(0);
   };
 
+
+  const handleSaveRecipe = async () => {
+    try {
+      const user = auth.currentUser;
+      if (!user) {
+        alert('You must be logged in to save recipes.');
+        return;
+      }
+
+      const recipeId = `${recipe.name}_${user.uid}`;
+      const recipeRef = doc(db, 'recipes', recipeId);
+
+      await setDoc(recipeRef, {
+        ...recipe,
+        userId: user.uid,
+        savedAt: new Date().toISOString(),
+      });
+
+      alert(`${recipe.name} has been saved to "recipes"!`);
+    } catch (error) {
+      console.error(error);
+      alert('Failed to save recipe.');
+    }
+  };
+
   return (
     <ScrollView style={styles.container}>
       <Card style={styles.card}>
@@ -95,6 +121,16 @@ const RecipeScreen = ({ navigation, route }) => {
 
           <Divider style={styles.divider} />
 
+          {/* Save Recipe Button */}
+          <Button
+            mode="contained"
+            onPress={handleSaveRecipe}
+            style={{ marginTop: 12 }}
+          >
+            Save Recipe
+          </Button>
+
+          {/* Timer */}
           <View style={styles.timerContainer}>
             <Text style={styles.timerLabel}>🕒 Timer: {formatTime(secondsLeft)}</Text>
             <View style={styles.timerButtons}>
@@ -139,11 +175,6 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     elevation: 3,
     paddingBottom: 16,
-  },
-  title: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    marginBottom: 4,
   },
   sub: {
     color: '#666',
