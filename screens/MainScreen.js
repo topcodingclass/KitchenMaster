@@ -1,19 +1,24 @@
 //2025-8-31 fixed navigation errors and screen design
 
-
-
 import React, { useEffect, useState, useLayoutEffect } from 'react';
-import {View,StyleSheet,Image,TouchableOpacity,ActivityIndicator,} from 'react-native';
+import {View,StyleSheet,Image,TouchableOpacity,ActivityIndicator,ScrollView,} from 'react-native';
 import { Text, Card, Button } from 'react-native-paper';
 import { db, auth } from '../firebase';
-import { doc, getDoc, collection, getDocs } from 'firebase/firestore';
+import {
+  doc,
+  getDoc,
+  collection,
+  getDocs,
+  query,
+  where,
+} from 'firebase/firestore';
 
 const MainScreen = ({ navigation }) => {
   const userID = auth.currentUser?.uid;
 
   const [userName, setUserName] = useState('');
   const [todayMeal, setTodayMeal] = useState('');
-  const [todayName, setTodayName] = useState(''); // store current day name
+  const [todayName, setTodayName] = useState('');
   const [expiringFood, setExpiringFood] = useState([]);
   const [allExpiringFood, setAllExpiringFood] = useState([]);
   const [showAllExpiring, setShowAllExpiring] = useState(false);
@@ -22,14 +27,16 @@ const MainScreen = ({ navigation }) => {
   const [notifications, setNotifications] = useState([]);
   const [showNotifications, setShowNotifications] = useState(false);
 
+  const [savedRecipes, setSavedRecipes] = useState([]);
+
   useLayoutEffect(() => {
     navigation.setOptions({
-    headerBackVisible: false,   // 🔹 hides the back arrow (RN v6+)
-      headerLeft: () => null,     // extra safeguard
+      headerBackVisible: false, // 🔹 hides the back arrow (RN v6+)
+      headerLeft: () => null,
       headerRight: () => (
         <TouchableOpacity
           style={styles.notificationButton}
-          onPress={() => setShowNotifications(prev => !prev)}
+          onPress={() => setShowNotifications((prev) => !prev)}
         >
           <Image
             source={{
@@ -78,8 +85,13 @@ const MainScreen = ({ navigation }) => {
           const planDoc = planSnapshot.docs[0];
           const data = planDoc.data();
           const days = [
-            'Sunday', 'Monday', 'Tuesday', 'Wednesday',
-            'Thursday', 'Friday', 'Saturday'
+            'Sunday',
+            'Monday',
+            'Tuesday',
+            'Wednesday',
+            'Thursday',
+            'Friday',
+            'Saturday',
           ];
           const today = days[new Date().getDay()];
 
@@ -111,7 +123,9 @@ const MainScreen = ({ navigation }) => {
         if (!expiringSnapshot.empty) {
           const expiringDoc = expiringSnapshot.docs[0];
           const data = expiringDoc.data();
-          const sortedKeys = Object.keys(data).sort((a, b) => parseInt(a) - parseInt(b));
+          const sortedKeys = Object.keys(data).sort(
+            (a, b) => parseInt(a) - parseInt(b)
+          );
           const items = sortedKeys.map((key) => data[key]);
           setAllExpiringFood(items);
           setExpiringFood(items.slice(0, 3));
@@ -139,10 +153,10 @@ const MainScreen = ({ navigation }) => {
         const notifSnapshot = await getDocs(notifColRef);
 
         if (!notifSnapshot.empty) {
-          const notifDoc = notifSnapshot.docs[0]; 
+          const notifDoc = notifSnapshot.docs[0];
           const data = notifDoc.data();
           const sortedKeys = Object.keys(data).sort();
-          const notifList = sortedKeys.map(key => data[key]);
+          const notifList = sortedKeys.map((key) => data[key]);
           setNotifications(notifList);
         } else {
           setNotifications([]);
@@ -154,6 +168,34 @@ const MainScreen = ({ navigation }) => {
     };
 
     fetchNotifications();
+  }, [userID]);
+
+  // Fetch saved recipes
+  useEffect(() => {
+    if (!userID) return;
+
+    const fetchSavedRecipes = async () => {
+      try {
+        const recipesRef = collection(db, 'recipes');
+        const q = query(recipesRef, where('userId', '==', userID));
+        const snapshot = await getDocs(q);
+
+        if (!snapshot.empty) {
+          const userRecipes = snapshot.docs.map((doc) => ({
+            id: doc.id,
+            ...doc.data(),
+          }));
+          setSavedRecipes(userRecipes);
+        } else {
+          setSavedRecipes([]);
+        }
+      } catch (error) {
+        console.error('Error fetching saved recipes:', error);
+        setSavedRecipes([]);
+      }
+    };
+
+    fetchSavedRecipes();
   }, [userID]);
 
   if (!userID) {
@@ -176,13 +218,12 @@ const MainScreen = ({ navigation }) => {
   // Navigation functions
   const navigateToGenerate = () => navigation.navigate('Recipe List');
   const navigateToCamera = () => navigation.navigate('Food Scan');
-  const navigateToCommunity = () => navigation.navigate('Community Recipes');
   const navigateToPlanner = () => navigation.navigate('Meal Planner');
   const navigateToStorage = () => navigation.navigate('Storage List');
 
   // Toggle expiring items view
   const handleSeeAllExpiring = () => {
-    setShowAllExpiring(prev => {
+    setShowAllExpiring((prev) => {
       const next = !prev;
       setExpiringFood(next ? allExpiringFood : allExpiringFood.slice(0, 3));
       return next;
@@ -198,7 +239,9 @@ const MainScreen = ({ navigation }) => {
             <Text style={styles.sectionTitle}>Notifications</Text>
             {notifications.length > 0 ? (
               notifications.map((item, index) => (
-                <Text key={index} style={styles.itemText}>• {item}</Text>
+                <Text key={index} style={styles.itemText}>
+                  • {item}
+                </Text>
               ))
             ) : (
               <Text>No notifications</Text>
@@ -212,7 +255,9 @@ const MainScreen = ({ navigation }) => {
         <Card.Content style={styles.cardContent}>
           <Text style={styles.sectionTitle}>Expiring Soon</Text>
           {expiringFood.map((item, index) => (
-            <Text key={index} style={styles.itemText}>• {item}</Text>
+            <Text key={index} style={styles.itemText}>
+              • {item}
+            </Text>
           ))}
           {allExpiringFood.length > 3 && (
             <TouchableOpacity style={styles.seeAll} onPress={handleSeeAllExpiring}>
@@ -221,7 +266,9 @@ const MainScreen = ({ navigation }) => {
               </Text>
             </TouchableOpacity>
           )}
-          <Button mode="outlined" onPress={navigateToStorage}>Storage Screen</Button>
+          <Button mode="outlined" onPress={navigateToStorage}>
+            Storage Screen
+          </Button>
         </Card.Content>
       </Card>
 
@@ -232,24 +279,66 @@ const MainScreen = ({ navigation }) => {
           <Text style={styles.itemText}>
             {todayName ? `${todayName}: ${todayMeal}` : todayMeal}
           </Text>
-          <Button mode="outlined" onPress={navigateToPlanner}>Meal Planner</Button>
+          <Button mode="outlined" onPress={navigateToPlanner}>
+            Meal Planner
+          </Button>
         </Card.Content>
       </Card>
 
-      {/* Community recipes section */}
+      {/* Saved Recipes (horizontal scroll) */}
       <Card style={styles.card}>
         <Card.Content style={styles.cardContent}>
-          <Text style={styles.sectionTitle}>Popular Recipes</Text>
-          <Button mode="outlined" onPress={navigateToCommunity}>Community Page</Button>
+          <Text style={styles.sectionTitle}>Your Saved Recipes</Text>
+
+          {savedRecipes.length > 0 ? (
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              style={{ marginVertical: 8 }}
+            >
+              {savedRecipes.map((recipe) => (
+                <TouchableOpacity
+                  key={recipe.id}
+                  style={styles.recipeCard}
+                  onPress={() => navigation.navigate('Recipe Detail', { recipe })}
+                >
+                  <Card style={{ width: 160 }}>
+                    <Card.Content>
+                      <Text style={{ fontWeight: 'bold' }}>{recipe.name}</Text>
+                      <Text numberOfLines={2} style={{ fontSize: 12, color: '#555' }}>
+                        {recipe.type}
+                      </Text>
+                    </Card.Content>
+                  </Card>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          ) : (
+            <Text>No saved recipes yet.</Text>
+          )}
         </Card.Content>
       </Card>
 
       {/* Bottom Navigation */}
       <View style={styles.bottomNav}>
-        <Button style={{width:'170'}}onPress={navigateToGenerate}mode="contained" icon="pot-steam" ustifyContent="center">Generate Recipe
+        <Button
+          style={{ width: '170' }}
+          onPress={navigateToGenerate}
+          mode="contained"
+          icon="pot-steam"
+          justifyContent="center"
+        >
+          Generate Recipe
         </Button>
 
-        <Button style={{width:'170'}}onPress={navigateToCamera}mode="contained" icon="camera" justifyContent="center">Scan Food
+        <Button
+          style={{ width: '170' }}
+          onPress={navigateToCamera}
+          mode="contained"
+          icon="camera"
+          justifyContent="center"
+        >
+          Scan Food
         </Button>
       </View>
     </View>
@@ -259,19 +348,55 @@ const MainScreen = ({ navigation }) => {
 export default MainScreen;
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#eee', padding: 7, },
-  card: { backgroundColor: '#f2f2f2', marginVertical: 10, padding: 10, borderRadius: 8, borderWidth: 1, borderColor: '#ccc' },
+  container: { flex: 1, backgroundColor: '#eee', padding: 7 },
+  card: {
+    backgroundColor: '#f2f2f2',
+    marginVertical: 10,
+    padding: 10,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#ccc',
+  },
   cardContent: { flexDirection: 'column', gap: 8 },
   sectionTitle: { fontWeight: 'bold', fontSize: 16, marginBottom: 8 },
   itemText: { fontSize: 14, marginBottom: 4 },
   seeAll: { marginTop: 4, marginBottom: 10 },
   seeAllText: { color: 'gray', fontStyle: 'italic' },
-  bottomNav: { position: 'absolute', bottom: 20, width: '100%', paddingHorizontal: 10, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  bottomNav: {
+    position: 'absolute',
+    bottom: 20,
+    width: '100%',
+    paddingHorizontal: 10,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
   navText: { fontSize: 12, textAlign: 'center' },
   cameraIcon: { width: 40, height: 40 },
   centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  notificationButton: { flexDirection: 'row', alignItems: 'center', position: 'relative' },
-  notifBadge: { position: 'absolute', top: -4, right: -4, backgroundColor: 'red', borderRadius: 10, paddingHorizontal: 5, paddingVertical: 1 },
+  notificationButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    position: 'relative',
+  },
+  notifBadge: {
+    position: 'absolute',
+    top: -4,
+    right: -4,
+    backgroundColor: 'red',
+    borderRadius: 10,
+    paddingHorizontal: 5,
+    paddingVertical: 1,
+  },
   notifBadgeText: { color: 'white', fontSize: 12, fontWeight: 'bold' },
-  notificationsTab: { backgroundColor: 'white', marginBottom: 10, borderRadius: 8, borderWidth: 1, borderColor: '#ccc' },
+  notificationsTab: {
+    backgroundColor: 'white',
+    marginBottom: 10,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#ccc',
+  },
+  recipeCard: {
+    marginRight: 10,
+  },
 });
