@@ -37,12 +37,32 @@ const StorageListScreen = ({ navigation }) => {
       const foodSnap = await getDocs(collection(db, "foods"));
       const foods = foodSnap.docs.map(doc => doc.data());
 
+      // Count items per storage
       const storagesWithCounts = loadedStorages.map(storage => {
         const count = foods.filter(food => food.storage === storage.name).length;
         return { ...storage, itemCount: count };
       });
 
-      setStorages(storagesWithCounts);
+      // Create virtual storage for expiring foods within 7 days
+      const today = new Date();
+      const in7Days = new Date();
+      in7Days.setDate(today.getDate() + 7);
+
+      const expiringFoods = foods.filter(food => {
+        if (!food.expirationDate) return false;
+        const expDate = new Date(food.expirationDate);
+        return expDate >= today && expDate <= in7Days;
+      });
+
+      const expiringStorage = {
+        id: 'expiring_soon',
+        name: 'Expiring Soon',
+        itemCount: expiringFoods.length,
+        isVirtual: true,
+        foods: expiringFoods,
+      };
+
+      setStorages([expiringStorage, ...storagesWithCounts]);
     } catch (e) {
       console.error("Error fetching storages or foods: ", e);
     }
@@ -70,24 +90,22 @@ const StorageListScreen = ({ navigation }) => {
     }
   };
 
+  const deleteStorage = async (storageName, itemCount) => {
+    try {
+      if (itemCount > 0) {
+        alert("You must delete all items in this storage first");
+        return;
+      }
 
-const deleteStorage = async (storageName, itemCount) => {
-  try {
-    if (itemCount > 0) {
-      alert("You must delete all items in this storage first");
-      return;
+      const q = query(collection(db, 'storages'), where('name', '==', storageName));
+      const snapshot = await getDocs(q);
+      const deletePromises = snapshot.docs.map((docItem) => deleteDoc(docItem.ref));
+      await Promise.all(deletePromises);
+      fetchStorages();
+    } catch (e) {
+      console.error('Error deleting storage: ', e);
     }
-
-    const q = query(collection(db, 'storages'), where('name', '==', storageName));
-    const snapshot = await getDocs(q);
-    const deletePromises = snapshot.docs.map((docItem) => deleteDoc(docItem.ref));
-    await Promise.all(deletePromises);
-    fetchStorages();
-  } catch (e) {
-    console.error('Error deleting storage: ', e);
-  }
-};
-
+  };
 
   const startEdit = (item) => {
     setEditingId(item.id);
@@ -127,7 +145,7 @@ const deleteStorage = async (storageName, itemCount) => {
           </Text>
         </View>
       )}
-      {editingId !== item.id && (
+      {editingId !== item.id && !item.isVirtual && (
         <View style={{ flexDirection: 'row' }}>
           <Button
             mode="contained-tonal"
@@ -152,7 +170,12 @@ const deleteStorage = async (storageName, itemCount) => {
     <View>
       <TouchableOpacity
         style={styles.storageCard}
-        onPress={() => navigation.navigate('Storage Detail', { storage: item })}
+        onPress={() =>
+          navigation.navigate('Storage Detail', {
+            storage: item,
+            foods: item.isVirtual ? item.foods : undefined, // Pass foods for virtual storage
+          })
+        }
       >
         <Text variant="titleMedium">{item.name}</Text>
         <Text variant="bodySmall" style={{ color: 'gray' }}>
