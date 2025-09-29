@@ -1,14 +1,13 @@
-//2025-8-31 fixed navigation errors and screen design
-
 import React, { useEffect, useState, useLayoutEffect } from 'react';
 import RecipeCard from '../components/RecipeCard';
-import { View, StyleSheet, Image, TouchableOpacity, ActivityIndicator, ScrollView } from 'react-native';
+import {View,StyleSheet,Image,TouchableOpacity,ActivityIndicator,ScrollView,FlatList,Modal,Animated,Dimensions,} from 'react-native';
 import { Text, Card, Button } from 'react-native-paper';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { db, auth } from '../firebase';
-import { collection, getDocs } from 'firebase/firestore';
+import { collection, getDocs, doc, getDoc, query, where } from 'firebase/firestore';
 
 const formatExpirationDate = (dateValue) => {
-  if (!dateValue) return "No date";
+  if (!dateValue) return 'No date';
   const d = new Date(dateValue);
   return d.toLocaleDateString();
 };
@@ -26,18 +25,37 @@ const MainScreen = ({ navigation }) => {
 
   const [notifications, setNotifications] = useState([]);
   const [showNotifications, setShowNotifications] = useState(false);
+  const [drawerAnim] = useState(new Animated.Value(Dimensions.get('window').width));
 
   const [savedRecipes, setSavedRecipes] = useState([]);
+
+  const openDrawer = () => {
+    setShowNotifications(true);
+    Animated.timing(drawerAnim, {
+      toValue: 0,
+      duration: 300,
+      useNativeDriver: false,
+    }).start();
+  };
+
+  const closeDrawer = () => {
+    Animated.timing(drawerAnim, {
+      toValue: Dimensions.get('window').width,
+      duration: 300,
+      useNativeDriver: false,
+    }).start(() => setShowNotifications(false));
+  };
 
   useLayoutEffect(() => {
     navigation.setOptions({
       headerBackVisible: false,
-      headerLeft: () => null,
+      headerLeft: () => (
+        <Text style={styles.welcomeText}>
+          {userName ? `Welcome, ${userName}` : 'Welcome'}
+        </Text>
+      ),
       headerRight: () => (
-        <TouchableOpacity
-          style={styles.notificationButton}
-          onPress={() => setShowNotifications((prev) => !prev)}
-        >
+        <TouchableOpacity style={styles.notificationButton} onPress={openDrawer}>
           <Image
             source={{
               uri: 'https://assets.streamlinehq.com/image/private/w_300,h_300,ar_1/f_auto/v1/icons/notifications/bell-oidqm6rhvuc2en0khzvmw2.png/bell-ligh2sop7xi1hvsmujni.png?_a=DATAg1AAZAA0',
@@ -52,40 +70,124 @@ const MainScreen = ({ navigation }) => {
         </TouchableOpacity>
       ),
     });
-  }, [navigation, notifications]);
+  }, [navigation, notifications, userName]);
 
-  // Fetch user name
   useEffect(() => {
     if (!userID) return;
 
     const fetchUserName = async () => {
       try {
-        const userSnap = await getDocs(collection(db, 'users'));
-        setUserName(userSnap.exists() ? userSnap.data().name || 'Guest' : 'Guest');
+        const userRef = doc(db, 'users', userID);
+        const userSnap = await getDoc(userRef);
+
+        if (userSnap.exists()) {
+          setUserName(userSnap.data().name || 'Guest');
+        } else {
+          setUserName('Guest');
+        }
       } catch (error) {
         console.error('Error fetching user name:', error);
         setUserName('Guest');
       }
     };
+
     fetchUserName();
   }, [userID]);
 
-  // Fetch today's meal plan
+  useEffect(() => {
+    if (!userID) return;
+
+    const fetchNotifications = async () => {
+      try {
+        const notifQuery = query(
+          collection(db, 'notifications'),
+          where('userID', '==', userID)
+        );
+        const notifSnapshot = await getDocs(notifQuery);
+        const notifList = notifSnapshot.docs.map(doc => doc.data().message || '');
+        setNotifications(notifList);
+      } catch (error) {
+        console.error('Error fetching notifications:', error);
+        setNotifications([]);
+      }
+    };
+    fetchNotifications();
+  }, [userID]);
+
+  useEffect(() => {
+    if (!userID) return;
+
+    const fetchRecipes = async () => {
+      try {
+        const recipesQuery = query(
+          collection(db, 'recipes'),
+          where('userId', '==', userID)
+        );
+        const snapshot = await getDocs(recipesQuery);
+        const userRecipes = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        setSavedRecipes(userRecipes);
+      } catch (error) {
+        console.error('Error fetching saved recipes:', error);
+        setSavedRecipes([]);
+      }
+    };
+    fetchRecipes();
+  }, [userID]);
+
+  useEffect(() => {
+    if (!userID) return;
+
+    const fetchExpiringFood = async () => {
+      try {
+        const foodsQuery = query(
+          collection(db, 'foods'),
+          where('userID', '==', userID)
+        );
+        const foodSnap = await getDocs(foodsQuery);
+        const foods = foodSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+        const today = new Date();
+        const in7Days = new Date();
+        in7Days.setDate(today.getDate() + 7);
+
+        const expiringItems = foods.filter(food => {
+          if (!food.expirationDate) return false;
+          const [month, day, year] = food.expirationDate.split('/');
+          const fullYear = year.length === 2 ? 2000 + parseInt(year, 10) : parseInt(year, 10);
+          const expDate = new Date(fullYear, month - 1, day);
+          return expDate >= today && expDate <= in7Days;
+        });
+
+        const sortedExpiring = expiringItems.sort(
+          (a, b) => new Date(a.expirationDate) - new Date(b.expirationDate)
+        );
+
+        setAllExpiringFood(sortedExpiring);
+        setExpiringFood(sortedExpiring.slice(0, 3));
+      } catch (error) {
+        console.error('Error fetching expiring food:', error);
+        setAllExpiringFood([]);
+        setExpiringFood([]);
+      }
+    };
+
+    fetchExpiringFood();
+  }, [userID]);
+
   useEffect(() => {
     if (!userID) return;
 
     const fetchTodayMeal = async () => {
       try {
-        const planColRef = collection(db, 'users', userID, 'plan');
-        const planSnapshot = await getDocs(planColRef);
+        const mealPlanRef = doc(db, 'mealPlans', userID);
+        const mealPlanSnap = await getDoc(mealPlanRef);
 
-        if (!planSnapshot.empty) {
-          const planDoc = planSnapshot.docs[0];
-          const data = planDoc.data();
-          const days = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
-          const today = days[new Date().getDay()];
+        const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+        const today = days[new Date().getDay()];
+        setTodayName(today);
 
-          setTodayName(today);
+        if (mealPlanSnap.exists()) {
+          const data = mealPlanSnap.data();
           setTodayMeal(data[today] || 'No meal planned for today');
         } else {
           setTodayMeal('No meal planned for today');
@@ -99,91 +201,6 @@ const MainScreen = ({ navigation }) => {
     };
 
     fetchTodayMeal();
-  }, [userID]);
-
-  // Fetch expiring food from foods collection
-  useEffect(() => {
-    const fetchExpiringFood = async () => {
-      try {
-        const foodSnap = await getDocs(collection(db, 'foods'));
-        const foods = foodSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-
-        const today = new Date();
-        const in7Days = new Date();
-        in7Days.setDate(today.getDate() + 7);
-
-        const expiringItems = foods.filter(food => {
-          if (!food.expirationDate) return false;
-          const expDate = new Date(food.expirationDate);
-          return expDate >= today && expDate <= in7Days;
-        });
-
-        const sortedExpiring = expiringItems.sort((a, b) => new Date(a.expirationDate) - new Date(b.expirationDate));
-
-        setAllExpiringFood(sortedExpiring);
-        setExpiringFood(sortedExpiring.slice(0, 3));
-      } catch (error) {
-        console.error('Error fetching expiring food:', error);
-        setAllExpiringFood([]);
-        setExpiringFood([]);
-      }
-    };
-
-    fetchExpiringFood();
-  }, []);
-
-  // Fetch notifications
-  useEffect(() => {
-    if (!userID) return;
-
-    const fetchNotifications = async () => {
-      try {
-        const notifColRef = collection(db, 'users', userID, 'notifications');
-        const notifSnapshot = await getDocs(notifColRef);
-
-        if (!notifSnapshot.empty) {
-          const notifDoc = notifSnapshot.docs[0];
-          const data = notifDoc.data();
-          const sortedKeys = Object.keys(data).sort();
-          const notifList = sortedKeys.map((key) => data[key]);
-          setNotifications(notifList);
-        } else {
-          setNotifications([]);
-        }
-      } catch (error) {
-        console.error('Error fetching notifications:', error);
-        setNotifications([]);
-      }
-    };
-
-    fetchNotifications();
-  }, [userID]);
-
-  // Fetch saved recipes
-  useEffect(() => {
-    if (!userID) return;
-
-    const fetchSavedRecipes = async () => {
-      try {
-        const recipesRef = collection(db, 'recipes');
-        const snapshot = await getDocs(recipesRef);
-
-        if (!snapshot.empty) {
-          const userRecipes = snapshot.docs.map((doc) => ({
-            id: doc.id,
-            ...doc.data(),
-          }));
-          setSavedRecipes(userRecipes);
-        } else {
-          setSavedRecipes([]);
-        }
-      } catch (error) {
-        console.error('Error fetching saved recipes:', error);
-        setSavedRecipes([]);
-      }
-    };
-
-    fetchSavedRecipes();
   }, [userID]);
 
   if (!userID) {
@@ -203,13 +220,11 @@ const MainScreen = ({ navigation }) => {
     );
   }
 
-  // Navigation functions
   const navigateToGenerate = () => navigation.navigate('Recipe List');
   const navigateToCamera = () => navigation.navigate('Food Scan');
   const navigateToPlanner = () => navigation.navigate('Meal Planner');
   const navigateToStorage = () => navigation.navigate('Storage List');
 
-  // Toggle expiring items view
   const handleSeeAllExpiring = () => {
     setShowAllExpiring((prev) => {
       const next = !prev;
@@ -220,78 +235,90 @@ const MainScreen = ({ navigation }) => {
 
   return (
     <View style={styles.container}>
-      {/* Notifications Tab */}
-      {showNotifications && (
-        <Card style={styles.notificationsTab}>
-          <Card.Content>
-            <Text style={styles.sectionTitle}>Notifications</Text>
-            {notifications.length > 0 ? (
-              notifications.map((item, index) => (
-                <Text key={index} style={styles.itemText}>• {item}</Text>
-              ))
+      <Modal transparent animationType="none" visible={showNotifications} onRequestClose={closeDrawer}>
+        <TouchableOpacity style={styles.backdrop} activeOpacity={1} onPress={closeDrawer} />
+        <Animated.View style={[styles.drawer, { right: drawerAnim }]}>
+          <SafeAreaView style={{ flex: 1 }}>
+            <View style={styles.drawerHeader}>
+              <Text style={styles.drawerTitle}>Notifications</Text>
+              <Button onPress={closeDrawer}>Close</Button>
+            </View>
+            <ScrollView contentContainerStyle={{ paddingBottom: 20 }} style={{ flex: 1 }}>
+              {notifications.length > 0
+                ? notifications.map((item, index) => <Text key={index} style={styles.itemText}>• {item}</Text>)
+                : <Text style={styles.itemText}>No notifications</Text>}
+            </ScrollView>
+          </SafeAreaView>
+        </Animated.View>
+      </Modal>
+
+      <ScrollView contentContainerStyle={{ paddingBottom: 120 }}>
+        <Card style={styles.card}>
+          <Card.Content style={styles.cardContent}>
+            <Text style={styles.sectionTitle}>Top Recipes</Text>
+            {savedRecipes.length > 0 ? (
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginVertical: 8 }}>
+                {savedRecipes.map((recipe) => (
+                  <RecipeCard
+                    key={recipe.id}
+                    recipe={recipe}
+                    onPress={() => navigation.navigate('Recipe Detail', { recipe })}
+                  />
+                ))}
+              </ScrollView>
             ) : (
-              <Text>No notifications</Text>
+              <Text>No saved recipes yet.</Text>
             )}
           </Card.Content>
         </Card>
-      )}
 
-      {/* Expiring food section */}
-      <Card style={styles.card}>
-        <Card.Content style={styles.cardContent}>
-          <Text style={styles.sectionTitle}>Expiring Soon</Text>
-          {expiringFood.map((food) => (
-            <Card key={food.id} style={styles.foodCard}>
-              <Card.Content>
-                <Text style={{ fontWeight: 'bold' }}>{food.name}</Text>
-                <Text>Quantity: {food.quantity ?? 1}</Text>
-                <Text>Expires: {formatExpirationDate(food.expirationDate)}</Text>
-                {food.storage && <Text>Storage: {food.storage}</Text>}
-              </Card.Content>
-            </Card>
-          ))}
-          {allExpiringFood.length > 3 && (
-            <TouchableOpacity style={styles.seeAll} onPress={handleSeeAllExpiring}>
-              <Text style={styles.seeAllText}>{showAllExpiring ? '…see less' : '…see all'}</Text>
-            </TouchableOpacity>
-          )}
-          <Button mode="outlined" onPress={navigateToStorage}>
-            Storage Screen
-          </Button>
-        </Card.Content>
-      </Card>
+        <Card style={styles.card}>
+          <Card.Content style={styles.cardContent}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+              <Text style={styles.sectionTitle}>Expiring Soon</Text>
+              <TouchableOpacity onPress={() => navigation.navigate('Food List')}>
+                <Text style={{ color: '#007AFF' }}>View All</Text>
+              </TouchableOpacity>
+            </View>
+            <FlatList
+              data={expiringFood}
+              keyExtractor={(item) => item.id}
+              renderItem={({ item }) => (
+                <View style={styles.foodRow}>
+                  <Text style={styles.foodName}>{item.name}</Text>
+                  <Text style={styles.foodMeta}>Qty: {item.quantity ?? 1}</Text>
+                  <Text style={styles.foodMeta}>{formatExpirationDate(item.expirationDate)}</Text>
+                </View>
+              )}
+              ListEmptyComponent={<Text style={styles.itemText}>No expiring food</Text>}
+            />
+            {allExpiringFood.length > 3 && (
+              <TouchableOpacity style={styles.seeAll} onPress={handleSeeAllExpiring}>
+                <Text style={styles.seeAllText}>{showAllExpiring ? '…see less' : '…see all'}</Text>
+              </TouchableOpacity>
+            )}
+            <Button mode="outlined" onPress={navigateToStorage}>
+              Storage Screen
+            </Button>
+          </Card.Content>
+        </Card>
 
-      {/* Today's meal plan section */}
-      <Card style={styles.card}>
-        <Card.Content style={styles.cardContent}>
-          <Text style={styles.sectionTitle}>Today’s Meal Plan</Text>
-          <Text style={styles.itemText}>{todayName ? `${todayName}: ${todayMeal}` : todayMeal}</Text>
-          <Button mode="outlined" onPress={navigateToPlanner}>Meal Planner</Button>
-        </Card.Content>
-      </Card>
+        <Card style={styles.card}>
+          <Card.Content style={styles.cardContent}>
+            <Text style={styles.sectionTitle}>Today’s Meal Plan</Text>
+            <Text style={styles.itemText}>
+              {todayName ? `${todayName}: ${todayMeal}` : todayMeal}
+            </Text>
+            <Button mode="outlined" onPress={navigateToPlanner}>Meal Planner</Button>
+          </Card.Content>
+        </Card>
+      </ScrollView>
 
-      {/* Saved Recipes (horizontal scroll) */}
-      <Card style={styles.card}>
-        <Card.Content style={styles.cardContent}>
-          <Text style={styles.sectionTitle}>Top Recipes</Text>
-          {savedRecipes.length > 0 ? (
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginVertical: 8 }}>
-              {savedRecipes.map((recipe) => (
-                <RecipeCard recipe={recipe} onPress={() => navigation.navigate('Recipe Detail', { recipe })} />
-              ))}
-            </ScrollView>
-          ) : (
-            <Text>No saved recipes yet.</Text>
-          )}
-        </Card.Content>
-      </Card>
-
-      {/* Bottom Navigation */}
       <View style={styles.bottomNav}>
-        <Button style={{ width: '170' }} onPress={navigateToGenerate} mode="contained" icon="pot-steam">
+        <Button style={{ width: '48%' }} onPress={navigateToGenerate} mode="contained" icon="pot-steam">
           Generate Recipe
         </Button>
-        <Button style={{ width: '170' }} onPress={navigateToCamera} mode="contained" icon="camera">
+        <Button style={{ width: '48%' }} onPress={navigateToCamera} mode="contained" icon="camera">
           Scan Food
         </Button>
       </View>
@@ -303,7 +330,7 @@ export default MainScreen;
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#eee', padding: 7 },
-  card: { backgroundColor: '#f2f2f2', marginVertical: 10, padding: 10, borderRadius: 8, borderWidth: 1, borderColor: '#ccc' },
+  card: { backgroundColor: '#f9f9f9', marginVertical: 10, padding: 10, borderRadius: 8, borderWidth: 1, borderColor: '#ddd' },
   cardContent: { flexDirection: 'column', gap: 8 },
   sectionTitle: { fontWeight: 'bold', fontSize: 16, marginBottom: 8 },
   itemText: { fontSize: 14, marginBottom: 4 },
@@ -311,10 +338,15 @@ const styles = StyleSheet.create({
   seeAllText: { color: 'gray', fontStyle: 'italic' },
   bottomNav: { position: 'absolute', bottom: 20, width: '100%', paddingHorizontal: 10, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  notificationButton: { flexDirection: 'row', alignItems: 'center', position: 'relative' },
+  notificationButton: { flexDirection: 'row', alignItems: 'center', position: 'relative', marginLeft: 12 },
   notifBadge: { position: 'absolute', top: -4, right: -4, backgroundColor: 'red', borderRadius: 10, paddingHorizontal: 5, paddingVertical: 1 },
   notifBadgeText: { color: 'white', fontSize: 12, fontWeight: 'bold' },
-  notificationsTab: { backgroundColor: 'white', marginBottom: 10, borderRadius: 8, borderWidth: 1, borderColor: '#ccc' },
-  foodCard: { marginVertical: 4, padding: 5, backgroundColor: '#fff', borderRadius: 6, borderWidth: 1, borderColor: '#ddd' },
-  recipeCard: { marginRight: 10 },
+  backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.3)' },
+  drawer: { position: 'absolute', top: 0, bottom: 0, width: '75%', backgroundColor: 'white', borderLeftWidth: 1, borderColor: '#ccc', padding: 15, flex: 1 },
+  drawerHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
+  drawerTitle: { fontSize: 18, fontWeight: 'bold' },
+  foodRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 6, borderBottomWidth: 1, borderColor: '#e0e0e0' },
+  foodName: { fontWeight: '600', flex: 1 },
+  foodMeta: { fontSize: 12, color: '#555', marginLeft: 10 },
+  welcomeText: { fontSize: 15, fontWeight: '600', color: '#333', marginLeft: 12 },
 });
