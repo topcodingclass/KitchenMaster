@@ -48,7 +48,7 @@ const MealPlannerScreen = ({ navigation }) => {
     readMeals();
   }, [user]);
 
-  // Add a new meal
+  // Add a new meal manually
   const addMeal = async () => {
     if (!user || !mealName.trim()) return;
 
@@ -95,7 +95,7 @@ const MealPlannerScreen = ({ navigation }) => {
   );
 
   return (
-    <SafeAreaView>
+    <SafeAreaView style={{ flex: 1 }}>
       <View style={{ alignSelf: 'center', margin: 20 }}>
         <Text style={{ fontSize: 24, fontWeight: 'bold' }}>Meal Planner</Text>
         <Text style={{ fontSize: 16, color: 'gray' }}>{todayString}</Text>
@@ -136,31 +136,23 @@ const MealPlannerScreen = ({ navigation }) => {
 
       {/* Add new meal */}
       <View style={{ margin: 15 }}>
-        <TextInput
-          label="Meal name"
-          value={mealName}
-          onChangeText={setMealName}
-          style={styles.input}
-        />
-        <Button mode="contained" onPress={addMeal}>
-          Add Meal
-        </Button>
+        
 
-        {/* ⭐ NEW BUTTON to go to RecipeListScreen */}
+        {/* Pick from Recipes */}
         <Button
           style={{ marginTop: 10 }}
           mode="contained"
           onPress={() =>
             navigation.navigate('Recipe List', {
               mealInfo: {
-                date: todayString,
+                date: todayString,   // current week start
+                day: mealDay,        // selected day
                 currentMeals: mealsForDay,
-                day: mealDay,
               },
             })
           }
         >
-          Pick From Recipes
+          Add to Planner From Ai meal
         </Button>
       </View>
     </SafeAreaView>
