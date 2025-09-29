@@ -90,6 +90,7 @@ export default function FoodScanScreen({navigation}) {
         calories: nutr.calories != null ? Number(nutr.calories) : null,
         fat: nutr.fat != null ? Number(nutr.fat) : null,
         protein: nutr.protein != null ? Number(nutr.protein) : null,
+        carb: nutr.carbs != null ? Number(nutr.carbs) : null,   // ✅ added carbs
         servingSize: p.serving_size || null,
         basis: nutr.basis,
         brand: p.brands || null,
@@ -102,34 +103,40 @@ export default function FoodScanScreen({navigation}) {
   };
 
   const pickNutrition = (nutriments) => {
-    if (!nutriments) return { calories: null, fat: null, protein: null, basis: null };
+  if (!nutriments) {
+    return { calories: null, fat: null, protein: null, carbs: null, basis: null };
+  }
 
-    const caloriesServing = nutriments['energy-kcal_serving'] ?? nutriments['energy_serving'];
-    const fatServing = nutriments['fat_serving'];
-    const proteinServing = nutriments['proteins_serving'];
+  const caloriesServing = nutriments['energy-kcal_serving'] ?? nutriments['energy_serving'];
+  const fatServing = nutriments['fat_serving'];
+  const proteinServing = nutriments['proteins_serving'];
+  const carbsServing = nutriments['carbohydrates_serving']; // ✅ carbs per serving
 
-    if (caloriesServing != null || fatServing != null || proteinServing != null) {
-      return {
-        calories: caloriesServing ?? null,
-        fat: fatServing ?? null,
-        protein: proteinServing ?? null,
-        basis: 'per serving',
-      };
-    }
-
-    const calories100g =
-      nutriments['energy-kcal_100g'] ??
-      (nutriments['energy_100g'] != null ? Math.round(nutriments['energy_100g'] / 4.184) : null);
-    const fat100g = nutriments['fat_100g'];
-    const protein100g = nutriments['proteins_100g'];
-
+  if (caloriesServing != null || fatServing != null || proteinServing != null || carbsServing != null) {
     return {
-      calories: calories100g ?? null,
-      fat: fat100g ?? null,
-      protein: protein100g ?? null,
-      basis: 'per 100g',
+      calories: caloriesServing ?? null,
+      fat: fatServing ?? null,
+      protein: proteinServing ?? null,
+      carbs: carbsServing ?? null, // ✅ include carbs
+      basis: 'per serving',
     };
+  }
+
+  const calories100g =
+    nutriments['energy-kcal_100g'] ??
+    (nutriments['energy_100g'] != null ? Math.round(nutriments['energy_100g'] / 4.184) : null);
+  const fat100g = nutriments['fat_100g'];
+  const protein100g = nutriments['proteins_100g'];
+  const carbs100g = nutriments['carbohydrates_100g']; // ✅ carbs per 100g
+
+  return {
+    calories: calories100g ?? null,
+    fat: fat100g ?? null,
+    protein: protein100g ?? null,
+    carbs: carbs100g ?? null, // ✅ include carbs
+    basis: 'per 100g',
   };
+};
 
 
     const client = new OpenAI({
