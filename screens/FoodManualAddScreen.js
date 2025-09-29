@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { View, StyleSheet, Modal, FlatList, TouchableOpacity } from 'react-native';
-import { TextInput, Text, Button, Provider } from 'react-native-paper';
+import { TextInput, Text, Button } from 'react-native-paper';
 import { addDoc, collection, getDocs, query, where, deleteDoc, Timestamp } from 'firebase/firestore';
 import { db } from '../firebase';
 
@@ -9,11 +9,16 @@ const FoodManualAddScreen = ({ navigation }) => {
   const [quantity, setQuantity] = useState('');
   const [expirationDate, setExpirationDate] = useState('');
   const [type, setType] = useState('');
-  const [weightLB, setWeightLB] = useState('');
+  const [mass, setMass] = useState('');
   const [storage, setStorage] = useState('');
   const [storageID, setStorageID] = useState('');
   const [storages, setStorages] = useState([]);
   const [modalVisible, setModalVisible] = useState(false);
+
+  const [calories, setCalories] = useState('');
+  const [protein, setProtein] = useState('');
+  const [carb, setCarb] = useState('');
+  const [fat, setFat] = useState('');
 
   const fetchStorages = async () => {
     try {
@@ -63,9 +68,14 @@ const FoodManualAddScreen = ({ navigation }) => {
         quantity: Number(quantity),
         expirationDate,
         type,
-        weightLB: weightLB ? Number(weightLB) : null,
+        mass: mass ? Number(mass) : null,
         storage,
         scannedDate: Timestamp.fromDate(new Date()),
+
+        calories: calories ? Number(calories) : 0,
+        protein: protein ? Number(protein) : 0,
+        carb: carb ? Number(carb) : 0,
+        fat: fat ? Number(fat) : 0,
       });
       navigation.navigate('Food List');
     } catch (e) {
@@ -74,75 +84,79 @@ const FoodManualAddScreen = ({ navigation }) => {
   };
 
   return (
-    <Provider>
-      <View style={styles.container}>
-        <TextInput label="Name" value={name} onChangeText={setName} mode="outlined" style={{ marginTop: 12 }} />
-        <TextInput label="Quantity" value={quantity} onChangeText={setQuantity} mode="outlined" style={{ marginTop: 12 }} />
-        <TextInput label="Expiration Date" value={expirationDate} onChangeText={setExpirationDate} mode="outlined" style={{ marginTop: 12 }} />
-        <TextInput label="Type" value={type} onChangeText={setType} mode="outlined" style={{ marginTop: 12 }} />
-        <TextInput label="Weight in Pounds:" value={weightLB} onChangeText={setWeightLB} mode="outlined" style={{ marginTop: 12 }} />
+    <View style={styles.container}>
+      <TextInput label="Name" value={name} onChangeText={setName} mode="outlined" style={{ marginTop: 12 }} />
+      <TextInput label="Quantity" value={quantity} onChangeText={setQuantity} mode="outlined" style={{ marginTop: 12 }} />
+      <TextInput label="Expiration Date" value={expirationDate} onChangeText={setExpirationDate} mode="outlined" style={{ marginTop: 12 }} />
+      <TextInput label="Type" value={type} onChangeText={setType} mode="outlined" style={{ marginTop: 12 }} />
+      <TextInput label="Mass" value={mass} onChangeText={setMass} mode="outlined" style={{ marginTop: 12 }} />
 
-        <Text variant="titleMedium">Storage:</Text>
-        <Text variant="titleSmall" style={{ marginLeft: 60, marginBottom: 10 }}>{storage}</Text>
+      <TextInput label="Calories" value={calories} onChangeText={setCalories} mode="outlined" style={{ marginTop: 12 }} keyboardType="numeric" />
+      <TextInput label="Protein (g)" value={protein} onChangeText={setProtein} mode="outlined" style={{ marginTop: 12 }} keyboardType="numeric" />
+      <TextInput label="Carbs (g)" value={carb} onChangeText={setCarb} mode="outlined" style={{ marginTop: 12 }} keyboardType="numeric" />
+      <TextInput label="Fat (g)" value={fat} onChangeText={setFat} mode="outlined" style={{ marginTop: 12 }} keyboardType="numeric" />
 
-        <Button icon="file-cabinet" mode="contained-tonal" onPress={() => setModalVisible(true)}>
-          Select Storage
-        </Button>
+      <Text variant="titleMedium" style={{ marginTop: 20 }}>Storage:</Text>
+      <Text variant="titleSmall" style={{ marginLeft: 60, marginBottom: 10 }}>{storage}</Text>
 
-        <Modal visible={modalVisible} transparent animationType="slide">
-          <View style={styles.modalBackground}>
-            <View style={styles.modalContainer}>
-              <Text variant="titleMedium">Select Existing Storage</Text>
+      <Button icon="file-cabinet" mode="contained-tonal" onPress={() => setModalVisible(true)}>
+        Select Storage
+      </Button>
 
-              <FlatList
-                data={storages}
-                keyExtractor={(item) => item.value}
-                renderItem={({ item }) => (
-                  <View style={styles.storageRow}>
-                    <TouchableOpacity
-                      style={styles.selectButton}
-                      onPress={() => {
-                        setStorage(item.value);
-                        setModalVisible(false);
-                      }}
-                    >
-                      <Text>{item.label}</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={styles.deleteButton}
-                      onPress={() => deleteStorage(item.value)}
-                    >
-                      <Text style={{ color: 'white' }}>Delete</Text>
-                    </TouchableOpacity>
-                  </View>
-                )}
+      {/* Modal */}
+      <Modal visible={modalVisible} transparent animationType="slide">
+        <View style={styles.modalBackground}>
+          <View style={styles.modalContainer}>
+            <Text variant="titleMedium">Select Existing Storage</Text>
+
+            <FlatList
+              data={storages}
+              keyExtractor={(item) => item.value}
+              renderItem={({ item }) => (
+                <View style={styles.storageRow}>
+                  <TouchableOpacity
+                    style={styles.selectButton}
+                    onPress={() => {
+                      setStorage(item.value);
+                      setModalVisible(false);
+                    }}
+                  >
+                    <Text>{item.label}</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.deleteButton}
+                    onPress={() => deleteStorage(item.value)}
+                  >
+                    <Text style={{ color: 'white' }}>Delete</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+            />
+
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 20, alignItems: 'center', marginBottom: 20 }}>
+              <TextInput
+                placeholder="New Storage Name"
+                value={storageID}
+                onChangeText={setStorageID}
+                mode="outlined"
+                style={{ flex: 1, marginRight: 10 }}
               />
-
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 20, alignItems: 'center', marginBottom: 20 }}>
-                <TextInput
-                  placeholder="New Storage Name"
-                  value={storageID}
-                  onChangeText={setStorageID}
-                  mode="outlined"
-                  style={{ flex: 1, marginRight: 10 }}
-                />
-                <Button icon="archive-plus-outline" mode="contained-tonal" onPress={addStorage}>
-                  Add Storage
-                </Button>
-              </View>
-
-              <Button mode="contained" style={styles.closeButton} onPress={() => setModalVisible(false)}>
-                Close
+              <Button icon="archive-plus-outline" mode="contained-tonal" onPress={addStorage}>
+                Add Storage
               </Button>
             </View>
-          </View>
-        </Modal>
 
-        <Button mode="contained" style={{ marginTop: 30 }} onPress={addFood}>
-          Add Food
-        </Button>
-      </View>
-    </Provider>
+            <Button mode="contained" style={styles.closeButton} onPress={() => setModalVisible(false)}>
+              Close
+            </Button>
+          </View>
+        </View>
+      </Modal>
+
+      <Button mode="contained" style={{ marginTop: 30 }} onPress={addFood}>
+        Add Food
+      </Button>
+    </View>
   );
 };
 
