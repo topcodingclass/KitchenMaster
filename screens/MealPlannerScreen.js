@@ -7,7 +7,7 @@ import {
 } from 'react-native';
 import React, { useEffect, useState } from 'react';
 import { TextInput, Text, Divider, Button } from 'react-native-paper';
-import { collection, getDocs, addDoc } from 'firebase/firestore';
+import { collection, getDocs, addDoc, doc } from 'firebase/firestore';
 import { auth, db } from '../firebase';
 
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -17,36 +17,60 @@ const MealPlannerScreen = ({ navigation }) => {
 
   const [weekOffset, setWeekOffset] = useState(0);
   const baseDate = new Date();
-  const weekStart = new Date(
-    baseDate.getFullYear(),
-    baseDate.getMonth(),
-    baseDate.getDate() + weekOffset * 7
-  );
-  const todayString = weekStart.toDateString();
-
+const todayIndex = baseDate.getDay(); // 0 = Sun, 1 = Mon, ..., 6 = Sat
+// Move backwards to Sunday, then apply weekOffset
+const weekStart = new Date(
+  baseDate.getFullYear(),
+  baseDate.getMonth(),
+  baseDate.getDate() - todayIndex + weekOffset * 7
+);
+  
   const [meals, setMeals] = useState([]);
   const [mealName, setMealName] = useState('');
-  const [mealDay, setMealDay] = useState(DAYS[weekStart.getDay()]); // duefault to start day
+ const [mealDay, setMealDay] = useState(DAYS[new Date().getDay()]);
+
+  // compute actual selected date for the week
+  const dayIndex = DAYS.indexOf(mealDay);
+  const selectedDate = new Date(weekStart);
+  selectedDate.setDate(weekStart.getDate() + dayIndex);
+  const todayString = selectedDate.toDateString();
 
   // Fetch meals from Firestore
   useEffect(() => {
-    const readMeals = async () => {
-      if (!user) return;
-      try {
-        const querySnapshot = await getDocs(
-          collection(db, 'mealPlans', doc.id, 'mealPlan', )
-        );
-        const mealsFromDB = querySnapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data(),
-        }));
-        setMeals(mealsFromDB);
-      } catch (e) {
-        console.error('Error fetching meals: ', e);
-      }
-    };
-    readMeals();
-  }, [user]);
+  const readMeals = async () => {
+    if (!user) return;
+    try {
+      // 1. Get all mealPlans
+      const querySnapshot = await getDocs(collection(db, 'mealPlans'));
+
+      // 2. For each mealPlan doc, also fetch its subcollection `mealPlan`
+      const mealsFromDB = await Promise.all(
+  querySnapshot.docs.map(async (docSnap) => {
+    const parentData = docSnap.data(); // has `date`, `userID`
+    const mealPlanRef = collection(db, 'mealPlans', docSnap.id, 'mealPlan');
+    const mealPlanSnapshot = await getDocs(mealPlanRef);
+
+    const mealPlanData = mealPlanSnapshot.docs.map(subDoc => ({
+      id: subDoc.id,
+      ...subDoc.data(),
+      date: parentData.date,  // attach parent date
+      userID: parentData.userID,
+    }));
+
+    return mealPlanData;
+  })
+);
+setMeals(mealsFromDB.flat());
+
+      console.log(mealsFromDB);
+
+    } catch (e) {
+      console.error('Error fetching meals: ', e);
+    }
+  };
+
+  readMeals();
+}, [user]);
 
   // Add a new meal manually
   const addMeal = async () => {
@@ -71,10 +95,7 @@ const MealPlannerScreen = ({ navigation }) => {
     }
   };
 
-  // Filter meals for current week + selected day
-  const mealsForDay = meals.filter(
-    m => m.day === mealDay && m.weekStart === todayString
-  );
+
 
   const renderMeal = ({ item }) => (
     <View>
@@ -97,7 +118,6 @@ const MealPlannerScreen = ({ navigation }) => {
   return (
     <SafeAreaView style={{ flex: 1 }}>
       <View style={{ alignSelf: 'center', margin: 20 }}>
-        <Text style={{ fontSize: 24, fontWeight: 'bold' }}>Meal Planner</Text>
         <Text style={{ fontSize: 16, color: 'gray' }}>{todayString}</Text>
       </View>
 
@@ -126,9 +146,14 @@ const MealPlannerScreen = ({ navigation }) => {
 
       {/* Meals list */}
       <FlatList
-        data={mealsForDay}
-        renderItem={renderMeal}
-        keyExtractor={item => item.id}
+        data={meals.filter(m => {
+    const mealDate = new Date(m.date.toDate ? m.date.toDate() : m.date);
+    return mealDate >= weekStart &&
+           mealDate <= new Date(weekStart.getFullYear(), weekStart.getMonth(), weekStart.getDate() + 6) &&
+           DAYS[mealDate.getDay()] === mealDay;
+  })}
+  renderItem={renderMeal}
+  keyExtractor={item => item.id}
         ListEmptyComponent={
           <Text style={{ textAlign: 'center', margin: 10 }}>No meals yet</Text>
         }
