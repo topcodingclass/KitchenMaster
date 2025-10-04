@@ -26,7 +26,7 @@ const MealPlannerScreen = ({ navigation }) => {
 
   const [meals, setMeals] = useState([]);
   const [mealName, setMealName] = useState('');
-  const [mealDay, setMealDay] = useState(DAYS[weekStart.getDay()]); // default to start day
+  const [mealDay, setMealDay] = useState(DAYS[weekStart.getDay()]); // duefault to start day
 
   // Fetch meals from Firestore
   useEffect(() => {
@@ -34,7 +34,7 @@ const MealPlannerScreen = ({ navigation }) => {
       if (!user) return;
       try {
         const querySnapshot = await getDocs(
-          collection(db, 'mealPlans', user.uid, 'mealPlan')
+          collection(db, 'mealPlans', doc.id, 'mealPlan', )
         );
         const mealsFromDB = querySnapshot.docs.map(doc => ({
           id: doc.id,
@@ -85,7 +85,7 @@ const MealPlannerScreen = ({ navigation }) => {
         }
       >
         <Text>{item.mealName}</Text>
-        <Text>Day: {item.day}</Text>
+        <Text>Type: {item.mealType}</Text>
         {item.createdAt && (
           <Text>Added: {new Date(item.createdAt).toDateString()}</Text>
         )}
