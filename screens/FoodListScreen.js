@@ -1,7 +1,7 @@
-import { StyleSheet, View, SafeAreaView, FlatList, TouchableOpacity, Image } from 'react-native';
+import { StyleSheet, View, SafeAreaView, FlatList, TouchableOpacity, Image, ScrollView } from 'react-native';
 import { Button, Text, Divider, Searchbar } from 'react-native-paper';
-import React, { useEffect, useState, useLayoutEffect, useCallback } from 'react';
-import { collection, addDoc, getDocs } from "firebase/firestore"; 
+import React, { useState, useLayoutEffect, useCallback } from 'react';
+import { collection, getDocs } from "firebase/firestore"; 
 import { useFocusEffect } from '@react-navigation/native';
 import { db } from '../firebase';
 
@@ -85,36 +85,39 @@ const FoodListScreen = ({ navigation }) => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <Searchbar
-        placeholder="Search for food name..."
-        onChangeText={onChangeSearch}
-        value={searchQuery}
-        style={{ marginBottom: 10 }}
-      />
+      <ScrollView contentContainerStyle={{ flexGrow: 1, paddingBottom: 100 }}>
+        <Searchbar
+          placeholder="Search for food name..."
+          onChangeText={onChangeSearch}
+          value={searchQuery}
+          style={{ marginBottom: 10 }}
+        />
 
-      <FlatList
-        data={filteredFoods}
-        renderItem={renderFoodList}
-        keyExtractor={(item) => item.id}
-      />
+        <FlatList
+          data={filteredFoods}
+          renderItem={renderFoodList}
+          keyExtractor={(item) => item.id}
+          scrollEnabled={false} // disable since ScrollView is wrapping
+        />
 
-      <View style={{flexDirection:"row", justifyContent:'space-around'}}>
-        <Button 
-          icon="camera"
-          mode="contained" 
-          onPress={() => navigation.navigate('Food Scan')} 
-        >
-          Scan to Add
-        </Button>
+        <View style={{flexDirection:"row", justifyContent:'space-around', marginTop: 20}}>
+          <Button 
+            icon="camera"
+            mode="contained" 
+            onPress={() => navigation.navigate('Food Scan')} 
+          >
+            Scan to Add
+          </Button>
 
-        <Button 
-          icon="plus"
-          mode="contained" 
-          onPress={() => navigation.navigate('FoodManualAdd')} 
-        >
-          Add Manually
-        </Button>
-      </View>
+          <Button 
+            icon="plus"
+            mode="contained" 
+            onPress={() => navigation.navigate('Food Manual Add')} 
+          >
+            Add Manually
+          </Button>
+        </View>
+      </ScrollView>
     </SafeAreaView>
   );
 };
@@ -125,7 +128,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     padding: 10,
-    margin:7
+    margin: 7
   },
   foodCard: {
     paddingVertical: 12,
