@@ -36,55 +36,55 @@ const MealPlannerScreen = ({ navigation }) => {
   const todayString = selectedDate.toDateString();
 
   useEffect(() => {
-  const readMeals = async () => {
-    if (!user) return;
+    const readMeals = async () => {
+      if (!user) return;
 
-    try {
-      // Calculate the start and end of the selected day
-      const startOfDay = new Date(selectedDate);
-      startOfDay.setHours(0, 0, 0, 0);
+      try {
+        // Calculate the start and end of the selected day
+        const startOfDay = new Date(selectedDate);
+        startOfDay.setHours(0, 0, 0, 0);
 
-      const endOfDay = new Date(selectedDate);
-      endOfDay.setHours(23, 59, 59, 999);
+        const endOfDay = new Date(selectedDate);
+        endOfDay.setHours(23, 59, 59, 999);
 
-      // 🔥 Query only mealPlans for the selected date
-      const mealPlansRef = collection(db, 'mealPlans');
-      const snapshot = await getDocs(mealPlansRef);
+        // 🔥 Query only mealPlans for the selected date
+        const mealPlansRef = collection(db, 'mealPlans');
+        const snapshot = await getDocs(mealPlansRef);
 
-      // Filter only the parent docs belonging to this user & date range
-      const userPlans = snapshot.docs.filter(docSnap => {
-        const data = docSnap.data();
-        if ( !data.date) return false;
+        // Filter only the parent docs belonging to this user & date range
+        const userPlans = snapshot.docs.filter(docSnap => {
+          const data = docSnap.data();
+          if (!data.date) return false;
 
-        const mealDate = data.date.toDate ? data.date.toDate() : new Date(data.date);
-        return mealDate >= startOfDay && mealDate <= endOfDay;
-      });
+          const mealDate = data.date.toDate ? data.date.toDate() : new Date(data.date);
+          return mealDate >= startOfDay && mealDate <= endOfDay;
+        });
 
-      // Fetch subcollections for each matching mealPlan
-      const mealsForSelectedDate = await Promise.all(
-        userPlans.map(async docSnap => {
-          const mealPlanRef = collection(db, 'mealPlans', docSnap.id, 'mealPlan');
-          const mealPlanSnapshot = await getDocs(mealPlanRef);
+        // Fetch subcollections for each matching mealPlan
+        const mealsForSelectedDate = await Promise.all(
+          userPlans.map(async docSnap => {
+            const mealPlanRef = collection(db, 'mealPlans', docSnap.id, 'mealPlan');
+            const mealPlanSnapshot = await getDocs(mealPlanRef);
 
-          return mealPlanSnapshot.docs.map(subDoc => ({
-            id: subDoc.id,
-            ...subDoc.data(),
-            date: docSnap.data().date,
-            userID: docSnap.data().userID,
-          }));
-        })
-      );
+            return mealPlanSnapshot.docs.map(subDoc => ({
+              id: subDoc.id,
+              ...subDoc.data(),
+              date: docSnap.data().date,
+              userID: docSnap.data().userID,
+            }));
+          })
+        );
 
-      setMeals(mealsForSelectedDate.flat());
-      console.log('Meals for selected date:', mealsForSelectedDate.flat());
+        setMeals(mealsForSelectedDate.flat());
+        console.log('Meals for selected date:', mealsForSelectedDate.flat());
 
-    } catch (e) {
-      console.error('Error fetching meals: ', e);
-    }
-  };
+      } catch (e) {
+        console.error('Error fetching meals: ', e);
+      }
+    };
 
-  readMeals();
-}, [user, mealDay, weekOffset]);
+    readMeals();
+  }, [user, mealDay, weekOffset]);
 
 
   // Add a new meal manually
@@ -110,7 +110,18 @@ const MealPlannerScreen = ({ navigation }) => {
     }
   };
 
-
+  // === Group meals case-insensitively ===
+  const groupedMeals = {
+    Breakfast: meals.filter(
+      m => m.mealType && m.mealType.toLowerCase() === 'breakfast'
+    ),
+    Lunch: meals.filter(
+      m => m.mealType && m.mealType.toLowerCase() === 'lunch'
+    ),
+    Dinner: meals.filter(
+      m => m.mealType && m.mealType.toLowerCase() === 'dinner'
+    ),
+  };
 
   const renderMeal = ({ item }) => (
     <View>
@@ -120,7 +131,7 @@ const MealPlannerScreen = ({ navigation }) => {
           navigation.navigate('Meal Planner Detail', { meal: item })
         }
       >
-        <Text>{item.mealName}</Text>
+        <Text>Meal: {item.mealName}</Text>
         <Text>Type: {item.mealType}</Text>
         {item.createdAt && (
           <Text>Added: {new Date(item.createdAt).toDateString()}</Text>
@@ -129,6 +140,34 @@ const MealPlannerScreen = ({ navigation }) => {
       <Divider />
     </View>
   );
+
+  const renderCategory = (title, data) => (
+    <View key={title} style={styles.categoryContainer}>
+      <Text style={styles.categoryTitle}>{title}</Text>
+      {data.length > 0 ? (
+        data.map(item => (
+          <View key={item.id}>
+            <TouchableOpacity
+              style={styles.item}
+              onPress={() =>
+                navigation.navigate('Meal Planner Detail', { meal: item })
+              }
+            >
+              <Text>Meal: {item.mealName}</Text>
+              <Text>Type: {item.mealType}</Text>
+              {item.createdAt && (
+                <Text>Added: {new Date(item.createdAt).toDateString()}</Text>
+              )}
+            </TouchableOpacity>
+            <Divider />
+          </View>
+        ))
+      ) : (
+        <Text style={styles.emptyText}>No {title.toLowerCase()} added yet.</Text>
+      )}
+    </View>
+  );
+  // === end grouping ===
 
   return (
     <SafeAreaView style={{ flex: 1 }}>
@@ -159,11 +198,11 @@ const MealPlannerScreen = ({ navigation }) => {
         ))}
       </View>
 
-      {/* Meals list */}
+      {/* Meals list: now rendered grouped by Breakfast/Lunch/Dinner */}
       <FlatList
-        data={meals}
-        renderItem={renderMeal}
-        keyExtractor={item => item.id}
+        data={Object.keys(groupedMeals)}
+        keyExtractor={item => item}
+        renderItem={({ item }) => renderCategory(item, groupedMeals[item])}
         ListEmptyComponent={
           <Text style={{ textAlign: 'center', margin: 10 }}>No meals yet</Text>
         }
@@ -171,7 +210,6 @@ const MealPlannerScreen = ({ navigation }) => {
 
       {/* Add new meal */}
       <View style={{ margin: 15 }}>
-
 
         {/* Pick from Recipes */}
         <Button
@@ -230,5 +268,20 @@ const styles = StyleSheet.create({
   },
   daySelected: {
     backgroundColor: '#ddd',
+  },
+  categoryContainer: {
+    marginVertical: 10,
+  },
+  categoryTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    marginBottom: 5,
+    paddingHorizontal: 10,
+  },
+  emptyText: {
+    fontSize: 14,
+    color: 'gray',
+    paddingHorizontal: 10,
+    paddingBottom: 10,
   },
 });
