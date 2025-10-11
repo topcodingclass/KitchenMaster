@@ -1,5 +1,5 @@
 import React, { useEffect, useLayoutEffect, useState } from 'react';
-import { TouchableOpacity, View, Modal, FlatList } from 'react-native';
+import { TouchableOpacity, View, Modal, FlatList, ScrollView } from 'react-native';
 import { TextInput, Text, Button } from 'react-native-paper';
 import { doc, updateDoc, deleteDoc, addDoc, collection, getDocs, query, where, Timestamp } from 'firebase/firestore';
 import { db } from '../firebase';
@@ -107,14 +107,17 @@ const FoodDetailScreen = ({ route, navigation }) => {
   };
 
   return (
-    <View style={{ flex: 1, padding: 16 }}>
+    <ScrollView 
+      style={{ flex: 1, padding: 16 }}
+      contentContainerStyle={{ paddingBottom: 80 }} // extra space for scrolling past buttons
+    >
       <TextInput label="Name" value={name} onChangeText={setName} mode="outlined" style={{ marginBottom: 12 }} />
       <TextInput label="Quantity" value={quantity} onChangeText={setQuantity} mode="outlined" style={{ marginBottom: 12 }} />
       <TextInput label="Expiration Date" value={expirationDate} onChangeText={setExpirationDate} mode="outlined" style={{ marginBottom: 12 }} />
       <TextInput label="Type" value={type} onChangeText={setType} mode="outlined" style={{ marginBottom: 12 }} />
       <TextInput label="Mass" value={mass} onChangeText={setMass} mode="outlined" style={{ marginBottom: 12 }} />
 
-      {/* New nutrition fields */}
+      {/* Nutrition fields */}
       <TextInput label="Calories" value={calories} onChangeText={setCalories} mode="outlined" style={{ marginBottom: 12 }} keyboardType="numeric" />
       <TextInput label="Protein (g)" value={protein} onChangeText={setProtein} mode="outlined" style={{ marginBottom: 12 }} keyboardType="numeric" />
       <TextInput label="Carbs (g)" value={carb} onChangeText={setCarb} mode="outlined" style={{ marginBottom: 12 }} keyboardType="numeric" />
@@ -173,7 +176,7 @@ const FoodDetailScreen = ({ route, navigation }) => {
           Delete
         </Button>
       </View>
-    </View>
+    </ScrollView>
   );
 };
 
