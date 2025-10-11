@@ -174,34 +174,48 @@ const MainScreen = ({ navigation }) => {
     fetchExpiringFood();
   }, [userID]);
 
-  useEffect(() => {
-    if (!userID) return;
+useEffect(() => {
+  if (!userID) return;
 
-    const fetchTodayMeal = async () => {
-      try {
-        const mealPlanRef = doc(db, 'mealPlans', userID);
-        const mealPlanSnap = await getDoc(mealPlanRef);
+  const fetchTodayMealPlan = async () => {
+    try {
+      setLoading(true);
 
-        const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-        const today = days[new Date().getDay()];
-        setTodayName(today);
+      const mealPlanSubRef = collection(db, 'mealPlans', userID, 'mealPlan');
+      const subSnapshot = await getDocs(mealPlanSubRef);
 
-        if (mealPlanSnap.exists()) {
-          const data = mealPlanSnap.data();
-          setTodayMeal(data[today] || 'No meal planned for today');
-        } else {
-          setTodayMeal('No meal planned for today');
-        }
-      } catch (error) {
-        console.error('Error fetching today’s meal:', error);
-        setTodayMeal('No meal planned for today');
-      } finally {
-        setLoading(false);
+      if (subSnapshot.empty) {
+        setTodayMeal([]);
+        return;
       }
-    };
 
-    fetchTodayMeal();
-  }, [userID]);
+      const today = new Date();
+      const todayStr = today.toDateString();
+
+      const meals = subSnapshot.docs
+  .map(doc => ({ id: doc.id, ...doc.data() }))
+  .filter(m => {
+    const mealDate = new Date(m.date);
+    return mealDate.toDateString() === todayStr && m.userId === userID;
+  });
+
+
+      setTodayMeal(meals);
+    } catch (error) {
+      console.error('Error fetching today meals:', error);
+      setTodayMeal([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  fetchTodayMealPlan();
+}, [userID]);
+
+
+
+
+
 
   if (!userID) {
     return (
@@ -253,24 +267,30 @@ const MainScreen = ({ navigation }) => {
       </Modal>
 
       <ScrollView contentContainerStyle={{ paddingBottom: 120 }}>
-        <Card style={styles.card}>
-          <Card.Content style={styles.cardContent}>
-            <Text style={styles.sectionTitle}>Top Recipes</Text>
-            {savedRecipes.length > 0 ? (
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginVertical: 8 }}>
-                {savedRecipes.map((recipe) => (
-                  <RecipeCard
-                    key={recipe.id}
-                    recipe={recipe}
-                    onPress={() => navigation.navigate('Recipe Detail', { recipe })}
-                  />
-                ))}
-              </ScrollView>
-            ) : (
-              <Text>No saved recipes yet.</Text>
-            )}
-          </Card.Content>
-        </Card>
+       <Card style={styles.card}>
+  <Card.Content style={styles.cardContent}>
+    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+      <Text style={styles.sectionTitle}>Top Recipes</Text>
+      <TouchableOpacity onPress={() => navigation.navigate('Community Recipes')}>
+        <Text style={{ color: '#007AFF' }}>See All...</Text>
+      </TouchableOpacity>
+    </View>
+    {savedRecipes.length > 0 ? (
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginVertical: 4 }}>
+        {savedRecipes.map((recipe) => (
+          <RecipeCard
+            key={recipe.id}
+            recipe={recipe}
+            onPress={() => navigation.navigate('Recipe Detail', { recipe })}
+          />
+        ))}
+      </ScrollView>
+    ) : (
+      <Text>No saved recipes yet.</Text>
+    )}
+  </Card.Content>
+</Card>
+
 
         <Card style={styles.card}>
           <Card.Content style={styles.cardContent}>
@@ -284,11 +304,11 @@ const MainScreen = ({ navigation }) => {
               data={expiringFood}
               keyExtractor={(item) => item.id}
               renderItem={({ item }) => (
-                <View style={styles.foodRow}>
+                <TouchableOpacity style={styles.foodRow} onPress={()=>navigation.navigate("Food Detail", {food:item})}>
                   <Text style={styles.foodName}>{item.name}</Text>
                   <Text style={styles.foodMeta}>Qty: {item.quantity ?? 1}</Text>
                   <Text style={styles.foodMeta}>{formatExpirationDate(item.expirationDate)}</Text>
-                </View>
+                </TouchableOpacity>
               )}
               ListEmptyComponent={<Text style={styles.itemText}>No expiring food</Text>}
             />
@@ -304,14 +324,38 @@ const MainScreen = ({ navigation }) => {
         </Card>
 
         <Card style={styles.card}>
-          <Card.Content style={styles.cardContent}>
-            <Text style={styles.sectionTitle}>Today’s Meal Plan</Text>
-            <Text style={styles.itemText}>
-              {todayName ? `${todayName}: ${todayMeal}` : todayMeal}
-            </Text>
-            <Button mode="outlined" onPress={navigateToPlanner}>Meal Planner</Button>
-          </Card.Content>
-        </Card>
+  <Card.Content style={styles.cardContent}>
+    <Text style={styles.sectionTitle}>Today’s Meal Plan</Text>
+
+    {todayMeal.length > 0 ? (
+      <FlatList
+  data={todayMeal}
+  keyExtractor={(item, index) => index.toString()}
+  renderItem={({ item }) => (
+    <TouchableOpacity
+      style={styles.todayMealRow}
+      onPress={() => navigation.navigate('Meal Planner')}
+    >
+      <Text style={styles.mealType}>
+        {item.mealType.charAt(0).toUpperCase() + item.mealType.slice(1)}
+      </Text>
+      <Text style={styles.mealName}>{item.recipeName || item.mealName}</Text>
+    </TouchableOpacity>
+  )}
+  ItemSeparatorComponent={() => <View style={styles.mealDivider} />}
+/>
+
+
+    ) : (
+      <Text style={styles.itemText}>No meals planned</Text>
+    )}
+
+    <Button mode="outlined" onPress={navigateToPlanner} style={{ marginTop: 10 }}>
+      Meal Planner
+    </Button>
+  </Card.Content>
+</Card>
+
       </ScrollView>
 
       <View style={styles.bottomNav}>
@@ -330,13 +374,13 @@ export default MainScreen;
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#eee', padding: 7 },
-  card: { backgroundColor: '#f9f9f9', marginVertical: 10, padding: 10, borderRadius: 8, borderWidth: 1, borderColor: '#ddd' },
-  cardContent: { flexDirection: 'column', gap: 8 },
-  sectionTitle: { fontWeight: 'bold', fontSize: 16, marginBottom: 8 },
+  card: { backgroundColor: '#f9f9f9', marginVertical: 4, padding: 5, borderRadius: 8, borderWidth: 1, borderColor: '#ddd' },
+  cardContent: { flexDirection: 'column'},
+  sectionTitle: { fontWeight: 'bold', fontSize: 16, marginBottom: 5 },
   itemText: { fontSize: 14, marginBottom: 4 },
   seeAll: { marginTop: 4, marginBottom: 10 },
   seeAllText: { color: 'gray', fontStyle: 'italic' },
-  bottomNav: { position: 'absolute', bottom: 20, width: '100%', paddingHorizontal: 10, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  bottomNav: { position: 'absolute', bottom: 20, width: '100%', paddingHorizontal: 0, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   notificationButton: { flexDirection: 'row', alignItems: 'center', position: 'relative', marginLeft: 12 },
   notifBadge: { position: 'absolute', top: -4, right: -4, backgroundColor: 'red', borderRadius: 10, paddingHorizontal: 5, paddingVertical: 1 },
@@ -349,4 +393,26 @@ const styles = StyleSheet.create({
   foodName: { fontWeight: '600', flex: 1 },
   foodMeta: { fontSize: 12, color: '#555', marginLeft: 10 },
   welcomeText: { fontSize: 15, fontWeight: '600', color: '#333', marginLeft: 12 },
+  todayMealRow: {
+  padding: 12,
+  borderWidth: 1,
+  borderColor: '#ccc',
+  borderRadius: 6,
+  marginVertical: 4,
+},
+mealDivider: {
+  height: 1,
+  backgroundColor: '#ccc',
+  marginVertical: 4,
+},
+mealType: {
+  fontWeight: '600',
+  fontSize: 14,
+},
+mealName: {
+  fontSize: 16,
+  fontWeight: 'bold',
+  marginTop: 2,
+},
+
 });
