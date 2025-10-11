@@ -1,66 +1,61 @@
-// FoodScanResultScreen.js
-
 import { useState, useEffect } from 'react';
-import { StyleSheet, View, Modal, FlatList, TouchableOpacity } from 'react-native';
+import { StyleSheet, View, Modal, FlatList, TouchableOpacity, ScrollView } from 'react-native';
 import { Text, TextInput, Button } from 'react-native-paper';
 import { collection, addDoc, getDocs, Timestamp } from "firebase/firestore"; 
 import { db } from '../firebase';
 
 const FoodScanResultScreen = ({ route, navigation }) => {
-  const food = route?.params?.food ?? null;
+  const foodParam = route?.params?.food ?? null;
+  const foodListParam = route?.params?.foodList ?? null;
 
-  const [name, setName] = useState("");
+  const [foodList, setFoodList] = useState([]);
+  const [selectedFood, setSelectedFood] = useState(null);
+
+  const [name, setName] = useState('');
   const [quantity, setQuantity] = useState(1);
-  const [expirationDate, setExpirationDate] = useState("");
-  const [type, setType] = useState("");
+  const [expirationDate, setExpirationDate] = useState('');
+  const [type, setType] = useState('');
   const [mass, setMass] = useState(0);
-
   const [calories, setCalories] = useState(0);
   const [protein, setProtein] = useState(0);
   const [carb, setCarb] = useState(0);
   const [fat, setFat] = useState(0);
 
-  const [modalVisible, setModalVisible] = useState(false);
   const [storages, setStorages] = useState([]);
   const [storageID, setStorageID] = useState('');
   const [selectedStorage, setSelectedStorage] = useState('');
+  const [modalVisible, setModalVisible] = useState(false);
 
+  // ✅ Detect whether single item (barcode) or list (receipt)
   useEffect(() => {
-    try {
-      const foodData = typeof food === "string" ? JSON.parse(food) : (food || {});
-      setName(((foodData.name || "").replace(/imp$/i, "")).trim());
-      setQuantity(foodData.quantity ?? 1);
-      setExpirationDate(foodData.expirationDate ?? "");
-      setMass(foodData.mass ?? 0);
-
-      setCalories(foodData.calories ?? 0);
-      setProtein(foodData.protein ?? 0);
-      setCarb(foodData.carb ?? foodData.carbohydrates ?? foodData.carbohydrates_100g ?? 0);
-      setFat(foodData.fat ?? 0);
-
-      if (foodData.type) {
-        let categories = [];
-        if (typeof foodData.type === "string") categories = foodData.type.split(",");
-        else if (Array.isArray(foodData.type)) categories = foodData.type;
-        const englishCategories = categories.filter(cat => cat.startsWith("en:"));
-        const mainCategory = englishCategories[0] || categories[0] || "";
-        const cleanCategory = mainCategory.replace(/^en:/, "").split("/")[0].trim();
-        setType(cleanCategory);
-      } else setType("");
-    } catch (e) {
-      console.error("Error parsing scan result:", e);
-      setName("");
-      setQuantity(1);
-      setExpirationDate("");
-      setType("");
-      setMass(0);
-      setCalories(0);
-      setProtein(0);
-      setCarb(0);
-      setFat(0);
+    if (foodListParam && Array.isArray(foodListParam)) {
+      setFoodList(foodListParam);
+      setSelectedFood(foodListParam[0]);
+    } else if (foodParam && typeof foodParam === 'object') {
+      setFoodList([foodParam]);
+      setSelectedFood(foodParam);
     }
     fetchStorages();
-  }, [food]);
+  }, [foodParam, foodListParam]);
+
+  // ✅ When a food is selected, populate form
+  useEffect(() => {
+    if (!selectedFood) return;
+    try {
+      const f = selectedFood;
+      setName(f.name || '');
+      setQuantity(f.quantity ?? 1);
+      setExpirationDate('');
+      setType(f.type || '');
+      setMass(f.weightLB || f.mass || 0);
+      setCalories(f.calories || 0);
+      setProtein(f.proteinG || f.protein || 0);
+      setCarb(f.carbsG || f.carb || 0);
+      setFat(f.fatG || f.fat || 0);
+    } catch (e) {
+      console.error('Error parsing food:', e);
+    }
+  }, [selectedFood]);
 
   const fetchStorages = async () => {
     try {
@@ -101,76 +96,135 @@ const FoodScanResultScreen = ({ route, navigation }) => {
         storage: selectedStorage,
         scannedDate: Timestamp.fromDate(new Date())
       });
+      alert('✅ Food saved!');
       navigation.navigate('Food List');
     } catch (e) {
       console.error('Error saving food:', e.message);
     }
   };
 
+  const saveAllFoods = async () => {
+    try {
+      for (const f of foodList) {
+        await addDoc(collection(db, 'foods'), {
+          name: f.name || '',
+          type: f.type || '',
+          mass: f.weightLB || 0,
+          calories: f.calories || 0,
+          protein: f.proteinG || 0,
+          carb: f.carbsG || 0,
+          fat: f.fatG || 0,
+          storage: selectedStorage,
+          scannedDate: Timestamp.fromDate(new Date())
+        });
+      }
+      alert('✅ All foods saved!');
+      navigation.navigate('Food List');
+    } catch (e) {
+      console.error('Error saving all foods:', e.message);
+    }
+  };
+
   return (
     <View style={styles.container}>
-      <View style={{ padding: 10 }}>
+      {/* If multiple results, show selector */}
+      {foodList.length > 1 && (
+        <View style={{ marginBottom: 10 }}>
+          <Text variant="titleMedium" style={{ marginBottom: 8 }}>
+            Select item to review:
+          </Text>
+          <FlatList
+            data={foodList}
+            horizontal
+            keyExtractor={(item, i) => i.toString()}
+            renderItem={({ item }) => (
+              <TouchableOpacity
+                style={[
+                  styles.foodChip,
+                  selectedFood?.name === item.name && styles.foodChipSelected,
+                ]}
+                onPress={() => setSelectedFood(item)}
+              >
+                <Text>{item.name}</Text>
+              </TouchableOpacity>
+            )}
+          />
+        </View>
+      )}
+
+      <ScrollView>
         <TextInput label="Name" value={name} onChangeText={setName} />
         <TextInput
           label="Quantity"
           value={String(quantity)}
           keyboardType="numeric"
-          onChangeText={(text) => setQuantity(parseInt(text) || 1)}
+          onChangeText={(t) => setQuantity(parseInt(t) || 1)}
         />
-        <TextInput label="Expiration Date" value={expirationDate} onChangeText={setExpirationDate} />
         <TextInput label="Type" value={type} onChangeText={setType} />
         <TextInput
-          label="Mass"
+          label="Mass (lb)"
           value={String(mass)}
           keyboardType="numeric"
-          onChangeText={(text) => setMass(parseFloat(text) || 0)}
+          onChangeText={(t) => setMass(parseFloat(t) || 0)}
         />
         <TextInput
           label="Calories"
           value={String(calories)}
           keyboardType="numeric"
-          onChangeText={(text) => setCalories(parseFloat(text) || 0)}
+          onChangeText={(t) => setCalories(parseFloat(t) || 0)}
         />
         <TextInput
           label="Protein (g)"
           value={String(protein)}
           keyboardType="numeric"
-          onChangeText={(text) => setProtein(parseFloat(text) || 0)}
+          onChangeText={(t) => setProtein(parseFloat(t) || 0)}
         />
         <TextInput
           label="Carbs (g)"
           value={String(carb)}
           keyboardType="numeric"
-          onChangeText={(text) => setCarb(parseFloat(text) || 0)}
+          onChangeText={(t) => setCarb(parseFloat(t) || 0)}
         />
         <TextInput
           label="Fat (g)"
           value={String(fat)}
           keyboardType="numeric"
-          onChangeText={(text) => setFat(parseFloat(text) || 0)}
+          onChangeText={(t) => setFat(parseFloat(t) || 0)}
         />
 
-        <Text variant="titleMedium" style={{ marginTop: 30 }}>
-          Storage: {selectedStorage}
+        <Text variant="titleMedium" style={{ marginTop: 20 }}>
+          Storage: {selectedStorage || '(none selected)'}
         </Text>
-      </View>
 
-      <Button mode="contained-tonal" icon="file-cabinet" style={styles.button} onPress={() => setModalVisible(true)}>
-        Select Storage
-      </Button>
+        <Button
+          mode="contained-tonal"
+          icon="file-cabinet"
+          style={styles.button}
+          onPress={() => setModalVisible(true)}
+        >
+          Select Storage
+        </Button>
 
-      <Button mode="contained" icon="content-save" style={styles.button} onPress={saveFood}>
-        Save Food
-      </Button>
+        <Button mode="contained" icon="content-save" style={styles.button} onPress={saveFood}>
+          Save Food
+        </Button>
 
-      <Button mode="contained-tonal" icon="camera" style={styles.button} onPress={() => navigation.navigate('FoodScan')}>
-        Retake
-      </Button>
+        {foodList.length > 1 && (
+          <Button mode="contained-tonal" icon="content-save-all" style={styles.button} onPress={saveAllFoods}>
+            Save All
+          </Button>
+        )}
 
-      <Button mode="outlined" icon="close" style={styles.button} onPress={() => navigation.navigate('Food List')}>
-        Cancel
-      </Button>
+        <Button mode="outlined" icon="camera" style={styles.button} onPress={() => navigation.navigate('FoodScan')}>
+          Retake
+        </Button>
 
+        <Button mode="outlined" icon="close" style={styles.button} onPress={() => navigation.navigate('Food List')}>
+          Cancel
+        </Button>
+      </ScrollView>
+
+      {/* Storage Modal */}
       <Modal visible={modalVisible} transparent animationType="slide">
         <View style={styles.modalBackground}>
           <View style={styles.modalContainer}>
@@ -215,7 +269,20 @@ export default FoodScanResultScreen;
 const styles = StyleSheet.create({
   container: { flex: 1, padding: 16 },
   button: { marginVertical: 8 },
+  foodChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    marginRight: 8,
+    backgroundColor: '#f0f0f0',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#ddd',
+  },
+  foodChipSelected: {
+    backgroundColor: '#cce5ff',
+    borderColor: '#007bff',
+  },
   modalBackground: { flex: 1, justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.4)' },
   modalContainer: { backgroundColor: 'white', marginHorizontal: 20, borderRadius: 10, padding: 20 },
-  storageRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 10, borderBottomWidth: 1 },
+  storageRow: { paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#ddd' },
 });
