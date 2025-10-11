@@ -1,102 +1,111 @@
-import React, { useState } from "react";
+import React from "react";
 import {
   StyleSheet,
   View,
   SafeAreaView,
   Text,
   TouchableOpacity,
-  TextInput,
   Alert,
 } from "react-native";
 import { Button } from "react-native-paper";
-import { auth, db } from "../firebase"; // ✅ import firebase setup
-import { doc, getDoc, updateDoc } from "firebase/firestore";
+import { db } from "../firebase";
+import { doc, deleteDoc } from "firebase/firestore";
 
 const MealPlannerDetailScreen = ({ navigation, route }) => {
-  const { mealName = "Meal’s Name", mealDetails = "Detail of meal", date, mealType } =
-    route.params || {};
+  const { meal } = route.params;
 
-  const [mealDate, setMealDate] = useState(date || "2025-08-17");
-  const [mealTypeState, setMealTypeState] = useState(mealType || "Breakfast");
-  const [details, setDetails] = useState(mealDetails);
+  // ✅ Safely handle all possible field variations
+  const mealName = meal.mealName || "Unnamed Meal";
+  const mealType = meal.mealType || "Unknown Type";
 
-  const user = auth.currentUser;
+  // Handle different date structures (Timestamp, string, or missing)
+  const getReadableDate = () => {
+    const dateField =
+      meal.date || meal.Date || meal.mealDate || meal.createdAt || null;
 
-  const handleDeleteMeal = async () => {
-    if (!user) {
-      Alert.alert("Error", "No user logged in.");
-      return;
-    }
+    if (!dateField) return "No date available";
 
     try {
-      // 🔹 Load the mealPlan doc
-      const docRef = doc(db, "mealPlans", user.uid);
-      const docSnap = await getDoc(docRef);
-
-      if (docSnap.exists()) {
-        const data = docSnap.data();
-
-        // 🔹 Identify the day from mealType (e.g., "Mon Meal" → "Mon")
-        const dayKey = mealTypeState.split(" ")[0];
-
-        if (data[dayKey]) {
-          // 🔹 Filter out the meal
-          const updatedMeals = data[dayKey].filter((m) => m !== mealName);
-
-          // 🔹 Update Firestore
-          await updateDoc(docRef, { [dayKey]: updatedMeals });
-
-          // 🔹 Update local state
-          setDetails("Meal deleted!");
-
-          // 🔹 Navigate back and refresh list
-          navigation.goBack();
-        }
+      if (dateField.toDate) {
+        // Firestore Timestamp
+        return dateField.toDate().toDateString();
+      } else if (typeof dateField === "string") {
+        return new Date(dateField).toDateString();
+      } else if (dateField instanceof Date) {
+        return dateField.toDateString();
       }
-    } catch (error) {
-      console.log("Error deleting meal:", error);
-      Alert.alert("Error", "Could not delete meal.");
+    } catch (e) {
+      console.warn("Error formatting date:", e);
+    }
+
+    return "Invalid date";
+  };
+
+  const mealDate = getReadableDate();
+  const steps = meal.steps || meal.mealDetails || "No instructions available";
+  const parentId = meal.parentId;
+
+  const handleDeleteMeal = async () => {
+    try {
+      if (!parentId || !meal.id) {
+        Alert.alert("Error", "Missing meal reference.");
+        return;
+      }
+
+      Alert.alert(
+        "Delete Meal",
+        `Are you sure you want to delete "${mealName}"?`,
+        [
+          { text: "Cancel", style: "cancel" },
+          {
+            text: "Delete",
+            style: "destructive",
+            onPress: async () => {
+              await deleteDoc(doc(db, "mealPlans", parentId, "mealPlan", meal.id));
+              Alert.alert("Deleted", `${mealName} was deleted successfully.`);
+              navigation.navigate("MealPlanner", { refresh: true });
+            },
+          },
+        ]
+      );
+    } catch (err) {
+      console.error("Error deleting meal:", err);
+      Alert.alert("Error", "Could not delete this meal.");
     }
   };
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: "#f7f7f7" }}>
+    <SafeAreaView style={styles.safe}>
       <View style={styles.container}>
-        {/* Top Bar */}
-        <View style={styles.topBar}>
-          <TouchableOpacity
-            style={styles.backButton}
-            onPress={() => navigation.goBack()}
-          >
-            <Text style={styles.backText}>Back</Text>
-          </TouchableOpacity>
+        {/* Back Button */}
+        <TouchableOpacity
+          style={styles.backButton}
+          onPress={() => navigation.goBack()}
+        >
+          <Text style={styles.backText}>Back</Text>
+        </TouchableOpacity>
 
-          <View style={styles.rightInputs}>
-            <TextInput
-              style={styles.dateInput}
-              value={mealDate}
-              onChangeText={setMealDate}
-            />
-            <TextInput
-              style={styles.mealTypeInput}
-              value={mealTypeState}
-              onChangeText={setMealTypeState}
-            />
-          </View>
-        </View>
-
-        {/* Meal Name */}
+        {/* Title */}
         <Text style={styles.mealName}>{mealName}</Text>
         <View style={styles.divider} />
 
-        {/* Details Box */}
-        <View style={styles.detailsBox}>
-          <Text style={styles.detailsText}>{details}</Text>
+        {/* Meal Info */}
+        <View style={styles.infoBox}>
+          <Text style={styles.label}>Type of Meal:</Text>
+          <Text style={styles.value}>{mealType}</Text>
+
+          <Text style={styles.label}>Date:</Text>
+          <Text style={styles.value}>{mealDate}</Text>
+
+          <Text style={styles.label}>Steps / Instructions:</Text>
+          <Text style={styles.steps}>{steps}</Text>
         </View>
 
-        {/* Delete Meal Button */}
+        {/* Delete Button */}
         <Button
-          mode="outlined"
+          mode="contained"
+          buttonColor="#ff4d4d"
+          textColor="#fff"
           style={styles.deleteButton}
           onPress={handleDeleteMeal}
         >
@@ -110,84 +119,58 @@ const MealPlannerDetailScreen = ({ navigation, route }) => {
 export default MealPlannerDetailScreen;
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    padding: 20,
-    alignItems: "center",
-  },
-  topBar: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    width: "100%",
-    marginBottom: 20,
-  },
+  safe: { flex: 1, backgroundColor: "#f7f7f7" },
+  container: { flex: 1, padding: 20, alignItems: "center" },
   backButton: {
     backgroundColor: "orange",
     paddingVertical: 6,
     paddingHorizontal: 12,
     borderRadius: 4,
+    alignSelf: "flex-start",
+    marginBottom: 10,
   },
-  backText: {
-    color: "black",
-    fontWeight: "bold",
-  },
-  rightInputs: {
-    flexDirection: "column",
-    alignItems: "flex-end",
-    gap: 5,
-  },
-  dateInput: {
-    borderWidth: 1,
-    borderColor: "#ccc",
-    paddingVertical: 4,
-    paddingHorizontal: 10,
-    borderRadius: 6,
-    backgroundColor: "#f5f5f5",
-    minWidth: 120,
-    textAlign: "center",
-  },
-  mealTypeInput: {
-    borderWidth: 1,
-    borderColor: "#ccc",
-    paddingVertical: 4,
-    paddingHorizontal: 10,
-    borderRadius: 6,
-    backgroundColor: "#f5f5f5",
-    minWidth: 120,
-    textAlign: "center",
-    marginTop: 5,
-  },
+  backText: { color: "black", fontWeight: "bold" },
   mealName: {
-    fontSize: 20,
+    fontSize: 22,
     fontWeight: "600",
-    color: "#555",
+    color: "#333",
+    marginTop: 5,
     marginBottom: 10,
   },
   divider: {
     height: 1,
     backgroundColor: "#aaa",
-    width: "70%",
+    width: "80%",
     marginBottom: 20,
   },
-  detailsBox: {
-    borderWidth: 1,
-    borderColor: "#aaa",
-    borderRadius: 20,
-    width: "90%",
-    height: 180,
-    justifyContent: "center",
-    alignItems: "center",
+  infoBox: {
+    width: "95%",
     backgroundColor: "#fff",
-    marginBottom: 20,
+    borderRadius: 15,
+    padding: 15,
+    borderWidth: 1,
+    borderColor: "#ddd",
   },
-  detailsText: {
+  label: {
+    fontWeight: "bold",
     fontSize: 16,
+    marginTop: 8,
+    color: "#555",
+  },
+  value: {
+    fontSize: 15,
+    color: "#222",
+    marginBottom: 4,
+  },
+  steps: {
+    fontSize: 15,
     color: "#333",
-    textAlign: "center",
+    marginTop: 6,
+    lineHeight: 22,
   },
   deleteButton: {
-    width: 150,
-    borderColor: "#aaa",
-    marginTop: 10,
+    width: 180,
+    borderRadius: 8,
+    marginTop: 25,
   },
 });
