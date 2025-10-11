@@ -17,17 +17,17 @@ const MealPlannerScreen = ({ navigation }) => {
 
   const [weekOffset, setWeekOffset] = useState(0);
   const baseDate = new Date();
-const todayIndex = baseDate.getDay(); // 0 = Sun, 1 = Mon, ..., 6 = Sat
-// Move backwards to Sunday, then apply weekOffset
-const weekStart = new Date(
-  baseDate.getFullYear(),
-  baseDate.getMonth(),
-  baseDate.getDate() - todayIndex + weekOffset * 7
-);
-  
+  const todayIndex = baseDate.getDay(); // 0 = Sun, 1 = Mon, ..., 6 = Sat
+  // Move backwards to Sunday, then apply weekOffset
+  const weekStart = new Date(
+    baseDate.getFullYear(),
+    baseDate.getMonth(),
+    baseDate.getDate() - todayIndex + weekOffset * 7
+  );
+
   const [meals, setMeals] = useState([]);
   const [mealName, setMealName] = useState('');
- const [mealDay, setMealDay] = useState(DAYS[new Date().getDay()]);
+  const [mealDay, setMealDay] = useState(DAYS[new Date().getDay()]);
 
   // compute actual selected date for the week
   const dayIndex = DAYS.indexOf(mealDay);
@@ -37,40 +37,51 @@ const weekStart = new Date(
 
   // Fetch meals from Firestore
   useEffect(() => {
-  const readMeals = async () => {
-    if (!user) return;
-    try {
-      // 1. Get all mealPlans
-      const querySnapshot = await getDocs(collection(db, 'mealPlans'));
+    const readMeals = async () => {
+      if (!user) return;
+      try {
+        // 1. Get all mealPlans
+        const querySnapshot = await getDocs(collection(db, 'mealPlans'));
 
-      // 2. For each mealPlan doc, also fetch its subcollection `mealPlan`
-      const mealsFromDB = await Promise.all(
-  querySnapshot.docs.map(async (docSnap) => {
-    const parentData = docSnap.data(); // has `date`, `userID`
-    const mealPlanRef = collection(db, 'mealPlans', docSnap.id, 'mealPlan');
-    const mealPlanSnapshot = await getDocs(mealPlanRef);
+        // 2. For each mealPlan doc, also fetch its subcollection `mealPlan`
+        const mealsFromDB = await Promise.all(
+          querySnapshot.docs.map(async (docSnap) => {
+            const parentData = docSnap.data(); // has `date`, `userID`
+            const mealPlanRef = collection(db, 'mealPlans', docSnap.id, 'mealPlan');
+            const mealPlanSnapshot = await getDocs(mealPlanRef);
 
-    const mealPlanData = mealPlanSnapshot.docs.map(subDoc => ({
-      id: subDoc.id,
-      ...subDoc.data(),
-      date: parentData.date,  // attach parent date
-      userID: parentData.userID,
-    }));
+            const mealPlanData = mealPlanSnapshot.docs.map(subDoc => ({
+              id: subDoc.id,
+              ...subDoc.data(),
+              date: parentData.date,  // attach parent date
+              userID: parentData.userID,
+            }));
 
-    return mealPlanData;
+            return mealPlanData;
+          })
+        );
+        setMeals(mealsFromDB.flat());
+
+        console.log('Select date:', mealDay)
+
+        const todayMeal = mealsFromDB.flat().filter(m => {
+    const mealDate = new Date(m.date ? m.date.toDate() : m.date);
+    return mealDate >= weekStart &&
+           mealDate <= new Date(weekStart.getFullYear(), weekStart.getMonth(), weekStart.getDate() + 6) &&
+           DAYS[mealDate.getDay()] === mealDay;
   })
-);
-setMeals(mealsFromDB.flat());
 
-      console.log(mealsFromDB);
+    console.log('Today meal:', todayMeal)
 
-    } catch (e) {
-      console.error('Error fetching meals: ', e);
-    }
-  };
+        console.log(mealsFromDB);
 
-  readMeals();
-}, [user]);
+      } catch (e) {
+        console.error('Error fetching meals: ', e);
+      }
+    };
+
+    readMeals();
+  }, [user]);
 
   // Add a new meal manually
   const addMeal = async () => {
@@ -147,13 +158,13 @@ setMeals(mealsFromDB.flat());
       {/* Meals list */}
       <FlatList
         data={meals.filter(m => {
-    const mealDate = new Date(m.date.toDate ? m.date.toDate() : m.date);
-    return mealDate >= weekStart &&
-           mealDate <= new Date(weekStart.getFullYear(), weekStart.getMonth(), weekStart.getDate() + 6) &&
-           DAYS[mealDate.getDay()] === mealDay;
-  })}
-  renderItem={renderMeal}
-  keyExtractor={item => item.id}
+          const mealDate = new Date(m.date ? m.date.toDate() : m.date);
+          return mealDate >= weekStart &&
+            mealDate <= new Date(weekStart.getFullYear(), weekStart.getMonth(), weekStart.getDate() + 6) &&
+            DAYS[mealDate.getDay()] === mealDay;
+        })}
+        renderItem={renderMeal}
+        keyExtractor={item => item.id}
         ListEmptyComponent={
           <Text style={{ textAlign: 'center', margin: 10 }}>No meals yet</Text>
         }
@@ -161,7 +172,7 @@ setMeals(mealsFromDB.flat());
 
       {/* Add new meal */}
       <View style={{ margin: 15 }}>
-        
+
 
         {/* Pick from Recipes */}
         <Button
