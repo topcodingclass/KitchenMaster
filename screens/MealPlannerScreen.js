@@ -35,53 +35,57 @@ const MealPlannerScreen = ({ navigation }) => {
   selectedDate.setDate(weekStart.getDate() + dayIndex);
   const todayString = selectedDate.toDateString();
 
-  // Fetch meals from Firestore
   useEffect(() => {
-    const readMeals = async () => {
-      if (!user) return;
-      try {
-        // 1. Get all mealPlans
-        const querySnapshot = await getDocs(collection(db, 'mealPlans'));
+  const readMeals = async () => {
+    if (!user) return;
 
-        // 2. For each mealPlan doc, also fetch its subcollection `mealPlan`
-        const mealsFromDB = await Promise.all(
-          querySnapshot.docs.map(async (docSnap) => {
-            const parentData = docSnap.data(); // has `date`, `userID`
-            const mealPlanRef = collection(db, 'mealPlans', docSnap.id, 'mealPlan');
-            const mealPlanSnapshot = await getDocs(mealPlanRef);
+    try {
+      // Calculate the start and end of the selected day
+      const startOfDay = new Date(selectedDate);
+      startOfDay.setHours(0, 0, 0, 0);
 
-            const mealPlanData = mealPlanSnapshot.docs.map(subDoc => ({
-              id: subDoc.id,
-              ...subDoc.data(),
-              date: parentData.date,  // attach parent date
-              userID: parentData.userID,
-            }));
+      const endOfDay = new Date(selectedDate);
+      endOfDay.setHours(23, 59, 59, 999);
 
-            return mealPlanData;
-          })
-        );
-        setMeals(mealsFromDB.flat());
+      // 🔥 Query only mealPlans for the selected date
+      const mealPlansRef = collection(db, 'mealPlans');
+      const snapshot = await getDocs(mealPlansRef);
 
-        console.log('Select date:', mealDay)
+      // Filter only the parent docs belonging to this user & date range
+      const userPlans = snapshot.docs.filter(docSnap => {
+        const data = docSnap.data();
+        if ( !data.date) return false;
 
-        const todayMeal = mealsFromDB.flat().filter(m => {
-    const mealDate = new Date(m.date ? m.date.toDate() : m.date);
-    return mealDate >= weekStart &&
-           mealDate <= new Date(weekStart.getFullYear(), weekStart.getMonth(), weekStart.getDate() + 6) &&
-           DAYS[mealDate.getDay()] === mealDay;
-  })
+        const mealDate = data.date.toDate ? data.date.toDate() : new Date(data.date);
+        return mealDate >= startOfDay && mealDate <= endOfDay;
+      });
 
-    console.log('Today meal:', todayMeal)
+      // Fetch subcollections for each matching mealPlan
+      const mealsForSelectedDate = await Promise.all(
+        userPlans.map(async docSnap => {
+          const mealPlanRef = collection(db, 'mealPlans', docSnap.id, 'mealPlan');
+          const mealPlanSnapshot = await getDocs(mealPlanRef);
 
-        console.log(mealsFromDB);
+          return mealPlanSnapshot.docs.map(subDoc => ({
+            id: subDoc.id,
+            ...subDoc.data(),
+            date: docSnap.data().date,
+            userID: docSnap.data().userID,
+          }));
+        })
+      );
 
-      } catch (e) {
-        console.error('Error fetching meals: ', e);
-      }
-    };
+      setMeals(mealsForSelectedDate.flat());
+      console.log('Meals for selected date:', mealsForSelectedDate.flat());
 
-    readMeals();
-  }, [user]);
+    } catch (e) {
+      console.error('Error fetching meals: ', e);
+    }
+  };
+
+  readMeals();
+}, [user, mealDay, weekOffset]);
+
 
   // Add a new meal manually
   const addMeal = async () => {
@@ -157,12 +161,7 @@ const MealPlannerScreen = ({ navigation }) => {
 
       {/* Meals list */}
       <FlatList
-        data={meals.filter(m => {
-          const mealDate = new Date(m.date ? m.date.toDate() : m.date);
-          return mealDate >= weekStart &&
-            mealDate <= new Date(weekStart.getFullYear(), weekStart.getMonth(), weekStart.getDate() + 6) &&
-            DAYS[mealDate.getDay()] === mealDay;
-        })}
+        data={meals}
         renderItem={renderMeal}
         keyExtractor={item => item.id}
         ListEmptyComponent={
