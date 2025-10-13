@@ -100,6 +100,7 @@ const RecipeScreen = ({ route, navigation }) => {
         {
           userID: userId,
           lastUpdated: new Date().toISOString(),
+           date: selectedDate.toISOString(),
         },
         { merge: true }
       );
@@ -107,7 +108,6 @@ const RecipeScreen = ({ route, navigation }) => {
       // ✅ Add to subcollection: mealPlans/{userId}/mealPlan
       const mealPlanRef = collection(db, "mealPlans", userId, "mealPlan");
       await addDoc(mealPlanRef, {
-        date: selectedDate.toISOString(),
         mealType,
         mealName: recipe.name,
         recipeID: recipeID,
