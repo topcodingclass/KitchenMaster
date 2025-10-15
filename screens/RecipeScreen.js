@@ -19,32 +19,33 @@ const RecipeScreen = ({ route, navigation }) => {
   const intervalRef = useRef(null);
 
   useLayoutEffect(() => {
-    navigation.setOptions({ title: recipe.name, 
+    navigation.setOptions({ 
+      title: recipe.name,
       headerRight: () => (
-              <TouchableOpacity style={styles.notificationButton} onPress={()=> navigation.navigate("Main")}>
-                <Text> Main </Text>
+              <TouchableOpacity style={styles.notificationButton} onPress={() => navigation.navigate('Main')}>
+               <Text>Home</Text>
               </TouchableOpacity>
             ),
     });
   }, [navigation, recipe.name]);
 
   useEffect(() => {
-  if (!isRunning) return;
+    if (!isRunning) return;
 
-  intervalRef.current = setInterval(() => {
-    setSecondsLeft(prev => {
-      if (prev <= 1) {
-        clearInterval(intervalRef.current);
-        setIsRunning(false);
-        alert("⏰ Time's up!");
-        return 0;
-      }
-      return prev - 1;
-    });
-  }, 1000);
+    intervalRef.current = setInterval(() => {
+      setSecondsLeft(prev => {
+        if (prev <= 1) {
+          clearInterval(intervalRef.current);
+          setIsRunning(false);
+          alert("⏰ Time's up!");
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
 
-  return () => clearInterval(intervalRef.current);
-}, [isRunning]);
+    return () => clearInterval(intervalRef.current);
+  }, [isRunning]);
 
 
   const formatTime = (totalSeconds) => {
@@ -80,38 +81,75 @@ const RecipeScreen = ({ route, navigation }) => {
     }
   };
 
-  const handleAddToMealPlan = async () => {
+ const handleAddToMealPlan = async () => {
   if (!mealType) {
-    alert('Please enter a meal type (e.g., Breakfast, Lunch, Dinner).');
+    alert("Please enter a meal type (e.g., Breakfast, Lunch, Dinner).");
     return;
   }
 
   try {
-    const userId = auth.currentUser.uid;
-    const dateString = selectedDate.toISOString().split('T')[0]; // "YYYY-MM-DD"
+    const userId = auth.currentUser?.uid;
+    if (!userId) {
+      alert("You must be logged in to add to your meal plan.");
+      return;
+    }
 
-    // Document ID = userId + "_" + date
-    const userDayDocRef = doc(db, 'mealPlans', `${userId}_${dateString}`);
+    let recipeID = recipe.id;
 
-    // Make sure the document exists and has the date field
-    await setDoc(userDayDocRef, { date: selectedDate.toISOString() }, { merge: true });
+    // 🧠 If the recipe isn't saved yet, save it first
+    if (!recipeID) {
+      recipeID = await confirmSaveRecipe();
+      if (!recipeID) {
+        alert("Failed to save recipe before adding to meal plan.");
+        return;
+      }
+    }
 
-    // Reference to the mealPlan subcollection
-    const mealPlanRef = collection(userDayDocRef, 'mealPlan');
+    // 🔹 Build ISO-like date range (consistent with your Firestore strings)
+    const year = selectedDate.getFullYear();
+    const month = String(selectedDate.getMonth() + 1).padStart(2, "0");
+    const day = String(selectedDate.getDate()).padStart(2, "0");
+    const startOfDay = `${year}-${month}-${day}T00:00:00.000Z`;
+    const endOfDay = `${year}-${month}-${day}T23:59:59.999Z`;
 
-    // Add the recipe to the subcollection
-    await addDoc(mealPlanRef, {
-      userId,
-      recipeId: recipe.id || null,
-      recipeName: recipe.name,
-      mealType,
-      createdAt: new Date(), // save as Timestamp
+    // ✅ STEP 1: Query mealPlans to find today’s parent document
+    const mealPlansRef = collection(db, "mealPlans");
+    const q = query(
+      mealPlansRef,
+      where("userID", "==", userId),
+      where("date", ">=", startOfDay),
+      where("date", "<=", endOfDay)
+    );
+
+    const snapshot = await getDocs(q);
+    let parentDocRef;
+
+    if (!snapshot.empty) {
+      // ✅ Existing mealPlans doc for this user/date
+      parentDocRef = snapshot.docs[0].ref;
+    } else {
+      // ✅ Otherwise, create one
+      parentDocRef = await addDoc(mealPlansRef, {
+        userID: userId,
+        date: selectedDate.toISOString(), // e.g. "2025-10-13T16:48:54.893Z"
+        createdAt: new Date().toISOString(),
+      });
+    }
+
+    // ✅ STEP 2: Add the new meal into the subcollection "mealPlan"
+    const subcollectionRef = collection(parentDocRef, "mealPlan");
+
+    await addDoc(subcollectionRef, {
+      mealType: mealType.trim(),
+      mealName: recipe.name,
+      recipeID: recipeID,
+      createdAt: new Date().toISOString(),
     });
 
-    alert('Added to your meal planner!');
+    alert("✅ Added to your meal planner!");
   } catch (error) {
-    console.error('Error adding to meal planner: ', error);
-    alert('Failed to save meal plan.');
+    console.error("🔥 Error adding to meal planner:", error);
+    alert("Failed to save meal plan.");
   }
 };
 
@@ -119,26 +157,36 @@ const RecipeScreen = ({ route, navigation }) => {
   const handleSaveRecipe = () => setShowImageDialog(true);
 
   const confirmSaveRecipe = async () => {
-    try {
-      const userId = auth.currentUser.uid;
-      const recipeRef = doc(db, 'recipes', `${userId}_${recipe.name}`);
+  try {
+    const userId = auth.currentUser.uid;
+    const recipeRef = doc(db, 'recipes', `${userId}_${recipe.name}`);
 
-      await setDoc(recipeRef, {
-        ...recipe,
-        userId,
-        savedAt: new Date().toISOString(),
-        imageUrl: imageUrl || null,
-      });
+    await setDoc(recipeRef, {
+      ...recipe,
+      userId,
+      // Ensure ingredients is properly structured
+      ingredients: recipe.ingredients?.map(item => ({
+        ingredient: item.ingredient,
+        quantity: item.quantity,
+      })) || [],
+      savedAt: new Date().toISOString(),
+      imageUrl: imageUrl || null,
+    });
 
-      alert('Recipe saved successfully!');
-      setShowImageDialog(false);
-      setImageUrl('');
-    } catch (error) {
-      console.error('Error saving recipe: ', error);
-      alert('Failed to save recipe.');
-      setShowImageDialog(false);
-    }
-  };
+    alert('✅ Recipe saved successfully!');
+    setShowImageDialog(false);
+    setImageUrl('');
+
+    return recipeRef.id; // ✅ Return Firestore doc ID
+  } catch (error) {
+    console.error('Error saving recipe: ', error);
+    alert('Failed to save recipe.');
+    setShowImageDialog(false);
+    return null;
+  }
+};
+
+
 
   const handleFinishRecipe = async () => {
     try {
@@ -153,11 +201,13 @@ const RecipeScreen = ({ route, navigation }) => {
         return;
       }
 
-      for (const ingredient of recipe.ingredients) {
+      for (const item of recipe.ingredients) {
+        const ingredientName = item.ingredient;
+
         const q = query(
           collection(db, 'foods'),
           where('userID', '==', userId),
-          where('name', '==', ingredient)
+          where('name', '==', ingredientName)
         );
 
         const snapshot = await getDocs(q);
@@ -186,11 +236,12 @@ const RecipeScreen = ({ route, navigation }) => {
         <Card style={styles.card}>
           <Card.Content>
             <Text style={styles.sectionTitle}>Ingredients</Text>
-            {recipe.ingredients?.map((ingredient, index) => (
+            {recipe.ingredients?.map((item, index) => (
               <Text key={index} style={styles.itemText}>
-                • {ingredient}
+                • {item.ingredient} ({item.quantity})
               </Text>
             ))}
+
           </Card.Content>
         </Card>
 
