@@ -19,26 +19,32 @@ const RecipeScreen = ({ route, navigation }) => {
   const intervalRef = useRef(null);
 
   useLayoutEffect(() => {
-    navigation.setOptions({ title: recipe.name });
+    navigation.setOptions({ title: recipe.name, 
+      headerRight: () => (
+              <TouchableOpacity style={styles.notificationButton} onPress={()=> navigation.navigate("Main")}>
+                <Text> Main </Text>
+              </TouchableOpacity>
+            ),
+    });
   }, [navigation, recipe.name]);
 
   useEffect(() => {
-    if (!isRunning) return;
+  if (!isRunning) return;
 
-    intervalRef.current = setInterval(() => {
-      setSecondsLeft(prev => {
-        if (prev <= 1) {
-          clearInterval(intervalRef.current);
-          setIsRunning(false);
-          alert("⏰ Time's up!");
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
+  intervalRef.current = setInterval(() => {
+    setSecondsLeft(prev => {
+      if (prev <= 1) {
+        clearInterval(intervalRef.current);
+        setIsRunning(false);
+        alert("⏰ Time's up!");
+        return 0;
+      }
+      return prev - 1;
+    });
+  }, 1000);
 
-    return () => clearInterval(intervalRef.current);
-  }, [isRunning]);
+  return () => clearInterval(intervalRef.current);
+}, [isRunning]);
 
 
   const formatTime = (totalSeconds) => {
@@ -75,86 +81,64 @@ const RecipeScreen = ({ route, navigation }) => {
   };
 
   const handleAddToMealPlan = async () => {
-    if (!mealType) {
-      alert("Please enter a meal type (e.g., Breakfast, Lunch, Dinner).");
-      return;
-    }
+  if (!mealType) {
+    alert('Please enter a meal type (e.g., Breakfast, Lunch, Dinner).');
+    return;
+  }
 
-    try {
-      const userId = auth.currentUser.uid;
-      let recipeID = recipe.id;
+  try {
+    const userId = auth.currentUser.uid;
+    const dateString = selectedDate.toISOString().split('T')[0]; // "YYYY-MM-DD"
 
-      // ✅ If recipe doesn't exist yet, save it first
-      if (!recipeID) {
-        recipeID = await confirmSaveRecipe();
-        if (!recipeID) {
-          alert("Failed to save recipe before adding to meal plan.");
-          return;
-        }
-      }
+    // Document ID = userId + "_" + date
+    const userDayDocRef = doc(db, 'mealPlans', `${userId}_${dateString}`);
 
-      // ✅ Ensure mealPlans/{userId} doc exists
-      const userDocRef = doc(db, "mealPlans", userId);
-      await setDoc(
-        userDocRef,
-        {
-          userID: userId,
-          lastUpdated: new Date().toISOString(),
-           date: selectedDate.toISOString(),
-        },
-        { merge: true }
-      );
+    // Make sure the document exists and has the date field
+    await setDoc(userDayDocRef, { date: selectedDate.toISOString() }, { merge: true });
 
-      // ✅ Add to subcollection: mealPlans/{userId}/mealPlan
-      const mealPlanRef = collection(db, "mealPlans", userId, "mealPlan");
-      await addDoc(mealPlanRef, {
-        mealType,
-        mealName: recipe.name,
-        recipeID: recipeID,
-        createdAt: new Date().toISOString(),
-      });
+    // Reference to the mealPlan subcollection
+    const mealPlanRef = collection(userDayDocRef, 'mealPlan');
 
-      alert("✅ Added to your meal planner!");
-    } catch (error) {
-      console.error("🔥 Error adding to meal planner: ", error);
-      alert("Failed to save meal plan.");
-    }
-  };
+    // Add the recipe to the subcollection
+    await addDoc(mealPlanRef, {
+      userId,
+      recipeId: recipe.id || null,
+      recipeName: recipe.name,
+      mealType,
+      createdAt: new Date(), // save as Timestamp
+    });
+
+    alert('Added to your meal planner!');
+  } catch (error) {
+    console.error('Error adding to meal planner: ', error);
+    alert('Failed to save meal plan.');
+  }
+};
 
 
   const handleSaveRecipe = () => setShowImageDialog(true);
 
   const confirmSaveRecipe = async () => {
-  try {
-    const userId = auth.currentUser.uid;
-    const recipeRef = doc(db, 'recipes', `${userId}_${recipe.name}`);
+    try {
+      const userId = auth.currentUser.uid;
+      const recipeRef = doc(db, 'recipes', `${userId}_${recipe.name}`);
 
-    await setDoc(recipeRef, {
-      ...recipe,
-      userId,
-      // Ensure ingredients is properly structured
-      ingredients: recipe.ingredients?.map(item => ({
-        ingredient: item.ingredient,
-        quantity: item.quantity,
-      })) || [],
-      savedAt: new Date().toISOString(),
-      imageUrl: imageUrl || null,
-    });
+      await setDoc(recipeRef, {
+        ...recipe,
+        userId,
+        savedAt: new Date().toISOString(),
+        imageUrl: imageUrl || null,
+      });
 
-    alert('✅ Recipe saved successfully!');
-    setShowImageDialog(false);
-    setImageUrl('');
-
-    return recipeRef.id; // ✅ Return Firestore doc ID
-  } catch (error) {
-    console.error('Error saving recipe: ', error);
-    alert('Failed to save recipe.');
-    setShowImageDialog(false);
-    return null;
-  }
-};
-
-
+      alert('Recipe saved successfully!');
+      setShowImageDialog(false);
+      setImageUrl('');
+    } catch (error) {
+      console.error('Error saving recipe: ', error);
+      alert('Failed to save recipe.');
+      setShowImageDialog(false);
+    }
+  };
 
   const handleFinishRecipe = async () => {
     try {
@@ -169,13 +153,11 @@ const RecipeScreen = ({ route, navigation }) => {
         return;
       }
 
-      for (const item of recipe.ingredients) {
-        const ingredientName = item.ingredient;
-
+      for (const ingredient of recipe.ingredients) {
         const q = query(
           collection(db, 'foods'),
           where('userID', '==', userId),
-          where('name', '==', ingredientName)
+          where('name', '==', ingredient)
         );
 
         const snapshot = await getDocs(q);
@@ -204,12 +186,11 @@ const RecipeScreen = ({ route, navigation }) => {
         <Card style={styles.card}>
           <Card.Content>
             <Text style={styles.sectionTitle}>Ingredients</Text>
-            {recipe.ingredients?.map((item, index) => (
+            {recipe.ingredients?.map((ingredient, index) => (
               <Text key={index} style={styles.itemText}>
-                • {item.ingredient} ({item.quantity})
+                • {ingredient}
               </Text>
             ))}
-
           </Card.Content>
         </Card>
 
