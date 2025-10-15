@@ -36,7 +36,10 @@ const RecipeListScreen = ({ navigation }) => {
           {
             name: "Recipe Name",
             type: "Main / Side / Dessert / etc",
-            ingredients: ["ingredient1", "ingredient2"],
+            ingredients: [
+                            { ingredient: "ingredient1", quantity: "amount" },
+                            { ingredient: "ingredient2", quantity: "amount" }
+                          ],
             steps: [
               { sequence: 1, description: "Step 1", time: "5 min" },
               { sequence: 2, description: "Step 2", time: "10 min" }
@@ -81,7 +84,7 @@ const RecipeListScreen = ({ navigation }) => {
   };
 
   const displayRecipe = ({ item }) => (
-    <Card style={styles.card} onPress={() => navigation.navigate('RecipeScreen', { recipe: item })}>
+    <Card style={styles.card} onPress={() => navigation.navigate('Recipe Detail', { recipe: item })}>
       <Card.Content>
         <Text variant="titleMedium">{item.name}</Text>
         <Paragraph>🍽 Type: {item.type}</Paragraph>
