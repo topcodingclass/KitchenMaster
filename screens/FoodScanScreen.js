@@ -7,6 +7,7 @@ import OpenAI from 'openai';
 import * as ImageManipulator from 'expo-image-manipulator';
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { storage } from '../firebase'; // make sure firebase.js exports your storage instance
+import Tesseract from 'tesseract.js';
 
 export default function FoodScanScreen({ navigation }) {
   const cameraRef = useRef(null);
@@ -47,32 +48,32 @@ export default function FoodScanScreen({ navigation }) {
     return manip.base64;
   };
 
- const uploadToFirebase = async (base64Data) => {
-  try {
-    console.log('Uploading Base64 image...');
+  const uploadToFirebase = async (base64Data) => {
+    try {
+      console.log('Uploading Base64 image...');
 
-    // Create a data URL from base64
-    const dataUrl = `data:image/jpeg;base64,${base64Data}`;
+      // Create a data URL from base64
+      const dataUrl = `data:image/jpeg;base64,${base64Data}`;
 
-    // ✅ This works in React Native / Expo
-    const response = await fetch(dataUrl);
-    const blob = await response.blob();
+      // ✅ This works in React Native / Expo
+      const response = await fetch(dataUrl);
+      const blob = await response.blob();
 
-    const timestamp = new Date().toISOString().replace(/[:.-]/g, '');
-    const filename = `${timestamp}.jpg`;
-    const objectPath = `storages/receipts/${filename}`;
+      const timestamp = new Date().toISOString().replace(/[:.-]/g, '');
+      const filename = `${timestamp}.jpg`;
+      const objectPath = `storages/receipts/${filename}`;
 
-    const storageRef = ref(storage, objectPath);
-    await uploadBytes(storageRef, blob);
+      const storageRef = ref(storage, objectPath);
+      await uploadBytes(storageRef, blob);
 
-    const url = await getDownloadURL(storageRef);
-    console.log('✅ Uploaded image:', url);
-    return url;
-  } catch (error) {
-    console.error('🔥 Upload failed:', error);
-    throw error;
-  }
-};
+      const url = await getDownloadURL(storageRef);
+      console.log('✅ Uploaded image:', url);
+      return url;
+    } catch (error) {
+      console.error('🔥 Upload failed:', error);
+      throw error;
+    }
+  };
 
 
 
@@ -82,18 +83,59 @@ export default function FoodScanScreen({ navigation }) {
     dangerouslyAllowBrowser: true,
   });
 
+
+
+  const runOcrLocally = async (base64) => {
+    try {
+      // ✅ Ensure full data URI header — OCR.space requires this exact format
+      const dataUri = `data:image/jpeg;base64,${base64}`;
+
+      const formData = new FormData();
+      formData.append("base64Image", dataUri);
+      formData.append("language", "eng");
+      formData.append("isOverlayRequired", false);
+      formData.append("OCREngine", 2); // newer, more accurate OCR engine
+
+      const res = await fetch("https://api.ocr.space/parse/image", {
+        method: "POST",
+        headers: {
+          apikey: "K82189494088957", // 👈 replace this with your real key
+        },
+        body: formData,
+      });
+
+      const result = await res.json();
+      console.log("🔍 OCR raw response:", JSON.stringify(result, null, 2));
+
+      // Handle errors gracefully
+      if (result.IsErroredOnProcessing) {
+        console.error("🔥 OCR Error:", result.ErrorMessage || result.ErrorDetails);
+        return "";
+      }
+
+      const text = result?.ParsedResults?.[0]?.ParsedText?.trim() || "";
+      console.log("🧾 OCR Text:", text);
+      return text;
+    } catch (err) {
+      console.error("🔥 OCR failed:", err);
+      return "";
+    }
+  };
+
+
+
   const sendToOpenAI = async (base64) => {
     setLoading(true);
 
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 30000);
-
     try {
-      // 🔹 Upload to Firebase first
-      const imageUrl = await uploadToFirebase(base64);
-      console.log('✅ Uploaded image to Firebase:', imageUrl);
+      // 1️⃣ Extract raw text with OCR.space (no image upload)
+      const receiptText = await runOcrLocally(base64);
 
+      // 2️⃣ Parse food items using GPT
       const instruction = `
+      You are a food receipt parser.
+      Extract food items and their approximate quantities from the following receipt text.
+      Ignore prices, totals, and taxes.
       Respond ONLY with a raw JSON array. Do not include any extra text or code fences.
       Each array element must include:
       - name: string (food name)
@@ -104,6 +146,7 @@ export default function FoodScanScreen({ navigation }) {
       - carbsG: number (estimated total carbohydrates in grams)
 
       Rules:
+      0. There could be typo in the receipt text, then correct it when it doesn't make sense at all
       1. Convert all weights to pounds (1 kg = 2.20462 lb, 1 oz = 0.0625 lb, 1 g = 0.00220462 lb).
       2. Use general nutrition knowledge to estimate macros and calories. 
       3. Multiply those per-100g values by the total weight.
@@ -115,52 +158,49 @@ export default function FoodScanScreen({ navigation }) {
         {"name":"Bananas","weightLB":1.25,"calories":510,"proteinG":6,"fatG":2,"carbsG":132},
         {"name":"Chicken Breast","weightLB":2.10,"calories":1575,"proteinG":330,"fatG":34,"carbsG":0}
       ]
-      `;
+      Receipt text:
+      ${receiptText}
+    `;
 
-      const resp = await client.chat.completions.create(
-        {
-          model: 'gpt-4o-mini',
-          messages: [
-            {
-              role: 'user',
-              content: [
-                { type: 'text', text: instruction },
-                { type: 'image_url', image_url: { url: imageUrl } },
-              ],
-            },
-          ],
-          temperature: 0,
-          max_tokens: 500,
-        },
-        { signal: controller.signal }
-      );
+      const resp = await client.chat.completions.create({
+        model: 'gpt-4o-mini',
+        messages: [{ role: 'user', content: instruction }],
+        temperature: 0,
+        max_tokens: 500,
+      });
 
-      const text = resp.choices?.[0]?.message?.content?.trim() ?? '';
-      console.log('✅ GPT Response:', text);
+      const resultText = resp.choices[0].message.content.trim();
+      console.log("✅ GPT Parsed:", resultText);
 
-      // Try to parse JSON
-      let json = [];
+      // 🧹 Clean GPT output (remove markdown fences, code blocks, stray chars)
+      const cleanText = resultText
+        .replace(/```json/i, "")   // remove starting ```json
+        .replace(/```/g, "")       // remove ending ```
+        .replace(/^\s+|\s+$/g, ""); // trim whitespace
+
+      let foodList = [];
       try {
-        json = JSON.parse(text);
+        foodList = JSON.parse(cleanText);
       } catch (err) {
-        const match = text.match(/\[.*\]/s);
-        if (match) json = JSON.parse(match[0]);
+        console.error("🔥 JSON parse error:", err);
+        alert("Failed to parse GPT output. Please retry.");
+        return;
       }
 
-      if (json && Array.isArray(json)) {
-        navigation.navigate('Scan Result', { foodList: json });
+      if (Array.isArray(foodList) && foodList.length > 0) {
+        navigation.navigate('Scan Result', { foodList });
       } else {
-        alert('Could not parse GPT response');
+        alert("No items detected. Try a clearer photo.");
       }
-    } catch (e) {
-      console.error('OpenAI error:', e);
-      if (e.name === 'AbortError') alert('Timed out. Please try again.');
-      else alert('Failed to analyze the receipt.');
+
+    } catch (error) {
+      console.error("🔥 Scan failed:", error);
+      alert("Failed to analyze receipt.");
     } finally {
-      clearTimeout(timeout);
       setLoading(false);
     }
   };
+
 
   const handleBarcodeScanned = async ({ data, type }) => {
     if (barcodePaused) return;
@@ -259,7 +299,7 @@ export default function FoodScanScreen({ navigation }) {
         {photoUri && (
           <Button
             mode="contained-tonal"
-            onPress={() => sendToOpenAI(photoBase64)}
+            onPress={() => sendToOpenAI(photoBase64)}   // 👈 use photoUri instead of photoBase64
             style={{ flex: 1 }}
             loading={loading}
             disabled={loading}
