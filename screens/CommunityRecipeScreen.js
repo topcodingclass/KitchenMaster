@@ -72,7 +72,7 @@ useLayoutEffect(() => {
 
     const renderItem = ({item, index}) => (
       <View >
-        <TouchableOpacity style = {styles.item} onPress={() =>navigation.navigate ("CommunityRecipeDetail", {recipe:item})}>
+        <TouchableOpacity style = {styles.item} onPress={() =>navigation.navigate ("Community Recipe Detail", {recipe:item})}>
             <View style={{flexDirection:'row', justifyContent:'space-between'}}>
               <Text variant="titleSmall">{index+1}. {item.name}</Text>
               <StarRatingDisplay
@@ -92,16 +92,6 @@ useLayoutEffect(() => {
       
     )
     
-
-            
-
-           
-              
-              
-
-    
-
-  
 
   return (
     <SafeAreaView>
