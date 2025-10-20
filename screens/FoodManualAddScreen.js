@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useLayoutEffect } from 'react';
 import { View, StyleSheet, Modal, FlatList, TouchableOpacity, ScrollView } from 'react-native';
 import { TextInput, Text, Button } from 'react-native-paper';
 import { addDoc, collection, getDocs, query, where, deleteDoc, Timestamp } from 'firebase/firestore';
@@ -19,6 +19,26 @@ const FoodManualAddScreen = ({ navigation }) => {
   const [protein, setProtein] = useState('');
   const [carb, setCarb] = useState('');
   const [fat, setFat] = useState('');
+
+  useLayoutEffect(() => {
+      navigation.setOptions({
+        headerTitle: () => (
+          <View style={{ flex: 1, flexDirection: "row", alignItems:'flex-start' }}>
+            <Text variant="titleMedium">Food List</Text>
+          </View>
+        ),
+        headerRight: () => (
+          <Button 
+            icon="file-cabinet"
+            mode="elevated" 
+            onPress={() => navigation.navigate('Main')} 
+            style={{marginBottom:6}}
+          >
+            <Text>Storage List</Text>
+          </Button>
+        )
+      });
+    }, [navigation]);
 
   const fetchStorages = async () => {
     try {
