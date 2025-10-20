@@ -1,5 +1,5 @@
 import React, { useState, useLayoutEffect, useEffect } from 'react';
-import { View, StyleSheet, Image, TouchableOpacity, ActivityIndicator, ScrollView, FlatList, Alert } from 'react-native';
+import { View, StyleSheet, TouchableOpacity, ActivityIndicator, ScrollView, FlatList, Alert } from 'react-native';
 import { Text, Card, Button } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { db, auth } from '../firebase';
@@ -30,6 +30,8 @@ const MainScreen = ({ navigation }) => {
   const [waterAlert, setWaterAlert] = useState(false);
   const [fireAlertSent, setFireAlertSent] = useState(false);
   const [waterAlertSent, setWaterAlertSent] = useState(false);
+  const [fireTimestamp, setFireTimestamp] = useState(null);
+  const [waterTimestamp, setWaterTimestamp] = useState(null);
 
   // Header setup
   useLayoutEffect(() => {
@@ -42,28 +44,39 @@ const MainScreen = ({ navigation }) => {
       ),
       headerRight: () => (
         <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-          <View
-            style={[
-              styles.headerAlertIcon,
-              fireAlert && { borderColor: 'red' },
-            ]}
+          {/* Fire Alert */}
+          <TouchableOpacity
+            onPress={() => {
+              const msg = fireAlert
+                ? `🔥 Fire alert active since ${fireTimestamp?.toLocaleString() ?? 'unknown'}`
+                : '🔥 Fire alert is inactive';
+              Alert.alert('Fire Alert Info', msg);
+            }}
           >
-            <Text style={{ fontSize: 18 }}>🔥</Text>
-          </View>
-          <View
-            style={[
-              styles.headerAlertIcon,
-              waterAlert && { borderColor: 'blue' },
-            ]}
+            <View style={[styles.headerAlertIcon, fireAlert && { borderColor: 'red' }]}>
+              <Text style={{ fontSize: 18 }}>🔥</Text>
+            </View>
+          </TouchableOpacity>
+
+          {/* Water Alert */}
+          <TouchableOpacity
+            onPress={() => {
+              const msg = waterAlert
+                ? `💧 Water alert active since ${waterTimestamp?.toLocaleString() ?? 'unknown'}`
+                : '💧 Water alert is inactive';
+              Alert.alert('Water Alert Info', msg);
+            }}
           >
-            <Text style={{ fontSize: 18 }}>💧</Text>
-          </View>
+            <View style={[styles.headerAlertIcon, waterAlert && { borderColor: 'blue' }]}>
+              <Text style={{ fontSize: 18 }}>💧</Text>
+            </View>
+          </TouchableOpacity>
         </View>
       ),
     });
-  }, [navigation, userName, fireAlert, waterAlert]);
+  }, [navigation, userName, fireAlert, waterAlert, fireTimestamp, waterTimestamp]);
 
-  // 🔹 Refresh data on focus
+  // Refresh data on focus
   useFocusEffect(
     React.useCallback(() => {
       if (!userID) return;
@@ -102,7 +115,7 @@ const MainScreen = ({ navigation }) => {
           setAllExpiringFood(sortedExpiring);
           setExpiringFood(sortedExpiring.slice(0, 3));
 
-          // 🔹 Fetch today’s meal plan (dynamic Firestore lookup)
+          // Fetch today’s meal plan
           const mealPlansRef = collection(db, 'mealPlans');
           const startOfDay = new Date(today);
           startOfDay.setHours(0, 0, 0, 0);
@@ -138,7 +151,7 @@ const MainScreen = ({ navigation }) => {
     }, [userID])
   );
 
-  // 🔔 Poll Fire/Water alerts
+  // Poll Fire/Water alerts
   useEffect(() => {
     if (!userID) return;
 
@@ -150,9 +163,13 @@ const MainScreen = ({ navigation }) => {
         if (!docSnap.exists()) return;
         const data = docSnap.data();
 
+        // Update alerts and timestamps
         setFireAlert(data.fire?.isOn ?? false);
         setWaterAlert(data.water?.isDetected ?? false);
+        setFireTimestamp(data.fire?.timestamp ? data.fire.timestamp.toDate() : null);
+        setWaterTimestamp(data.water?.timestamp ? data.water.timestamp.toDate() : null);
 
+        // Show alert popups once
         if (data.fire?.isOn && !fireAlertSent) {
           Alert.alert('🔥 Fire Alert!', 'Fire has been detected.');
           setFireAlertSent(true);
@@ -162,8 +179,10 @@ const MainScreen = ({ navigation }) => {
           setWaterAlertSent(true);
         }
 
+        // Update timestamp in Firestore
         if (data.fire?.isOn) await updateDoc(alertDocRef, { 'fire.timestamp': serverTimestamp() });
         if (data.water?.isDetected) await updateDoc(alertDocRef, { 'water.timestamp': serverTimestamp() });
+
       } catch (error) {
         console.error('Error checking alerts:', error);
       }
@@ -174,7 +193,6 @@ const MainScreen = ({ navigation }) => {
     return () => clearInterval(interval);
   }, [userID, fireAlertSent, waterAlertSent]);
 
-  // 🚀 UI
   if (!userID) {
     return (
       <View style={styles.centered}>
@@ -244,6 +262,7 @@ const MainScreen = ({ navigation }) => {
             <FlatList
               data={expiringFood}
               keyExtractor={item => item.id}
+              scrollEnabled={false}
               renderItem={({ item }) => (
                 <TouchableOpacity style={styles.foodRow} onPress={() => navigation.navigate('Food Detail', { food: item })}>
                   <Text style={styles.foodName}>{item.name}</Text>
@@ -268,21 +287,19 @@ const MainScreen = ({ navigation }) => {
         <Card style={styles.card}>
           <Card.Content>
             <Text style={styles.sectionTitle}>Today’s Meal Plan</Text>
-            {todayMeal.length > 0 ? (
-              <FlatList
-                data={todayMeal}
-                keyExtractor={item => item.id}
-                renderItem={({ item }) => (
-                  <TouchableOpacity style={styles.todayMealRow} onPress={() => navigation.navigate('Meal Planner')}>
-                    <Text style={styles.mealType}>{item.mealType}</Text>
-                    <Text style={styles.mealName}>{item.mealName}</Text>
-                  </TouchableOpacity>
-                )}
-                ItemSeparatorComponent={() => <View style={styles.mealDivider} />}
-              />
-            ) : (
-              <Text style={styles.itemText}>No meals planned today</Text>
-            )}
+            <FlatList
+              data={todayMeal}
+              keyExtractor={item => item.id}
+              scrollEnabled={false}
+              renderItem={({ item }) => (
+                <TouchableOpacity style={styles.todayMealRow} onPress={() => navigation.navigate('Meal Planner')}>
+                  <Text style={styles.mealType}>{item.mealType}</Text>
+                  <Text style={styles.mealName}>{item.mealName}</Text>
+                </TouchableOpacity>
+              )}
+              ItemSeparatorComponent={() => <View style={styles.mealDivider} />}
+              ListEmptyComponent={<Text style={styles.itemText}>No meals planned today</Text>}
+            />
             <Button mode="outlined" onPress={navigateToPlanner} style={{ marginTop: 10 }}>
               Meal Planner
             </Button>
