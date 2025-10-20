@@ -5,6 +5,7 @@ import { collection, addDoc, getDocs, Timestamp } from "firebase/firestore";
 import { db } from '../firebase';
 
 const FoodScanResultScreen = ({ route, navigation }) => {
+
   const foodParam = route?.params?.food ?? null;
   const foodListParam = route?.params?.foodList ?? null;
 
@@ -26,7 +27,7 @@ const FoodScanResultScreen = ({ route, navigation }) => {
   const [selectedStorage, setSelectedStorage] = useState('');
   const [modalVisible, setModalVisible] = useState(false);
 
-  // ✅ Detect whether single item (barcode) or list (receipt)
+
   useEffect(() => {
     if (foodListParam && Array.isArray(foodListParam)) {
       setFoodList(foodListParam);
@@ -38,22 +39,31 @@ const FoodScanResultScreen = ({ route, navigation }) => {
     fetchStorages();
   }, [foodParam, foodListParam]);
 
-  // ✅ When a food is selected, populate form
+
   useEffect(() => {
     if (!selectedFood) return;
     try {
       const f = selectedFood;
       setName(f.name || '');
       setQuantity(f.quantity ?? 1);
-      setExpirationDate('');
+      setExpirationDate(f.expirationDate ?? '');
       setType(f.type || '');
-      setMass(f.weightLB || f.mass || 0);
-      setCalories(f.calories || 0);
-      setProtein(f.proteinG || f.protein || 0);
-      setCarb(f.carbsG || f.carb || 0);
-      setFat(f.fatG || f.fat || 0);
+      setMass(f.weightLB ?? f.mass ?? 0);
+      setCalories(f.calories ?? 0);
+      setProtein(f.proteinG ?? f.protein ?? 0);
+      setCarb(f.carbsG ?? f.carb ?? 0);
+      setFat(f.fatG ?? f.fat ?? 0);
     } catch (e) {
-      console.error('Error parsing food:', e);
+
+      setName('');
+      setQuantity(1);
+      setExpirationDate('');
+      setType('');
+      setMass(0);
+      setCalories(0);
+      setProtein(0);
+      setCarb(0);
+      setFat(0);
     }
   }, [selectedFood]);
 
@@ -66,7 +76,7 @@ const FoodScanResultScreen = ({ route, navigation }) => {
       }));
       setStorages(storageList);
     } catch (e) {
-      console.error('Error fetching storages:', e);
+
     }
   };
 
@@ -77,7 +87,7 @@ const FoodScanResultScreen = ({ route, navigation }) => {
       setStorages([...storages, { label: storageID, value: storageID }]);
       setStorageID('');
     } catch (e) {
-      console.error('Error adding storage:', e);
+
     }
   };
 
@@ -99,7 +109,7 @@ const FoodScanResultScreen = ({ route, navigation }) => {
       alert('✅ Food saved!');
       navigation.navigate('Food List');
     } catch (e) {
-      console.error('Error saving food:', e.message);
+
     }
   };
 
@@ -109,11 +119,11 @@ const FoodScanResultScreen = ({ route, navigation }) => {
         await addDoc(collection(db, 'foods'), {
           name: f.name || '',
           type: f.type || '',
-          mass: f.weightLB || 0,
-          calories: f.calories || 0,
-          protein: f.proteinG || 0,
-          carb: f.carbsG || 0,
-          fat: f.fatG || 0,
+          mass: f.weightLB ?? 0,
+          calories: f.calories ?? 0,
+          protein: f.proteinG ?? 0,
+          carb: f.carbsG ?? 0,
+          fat: f.fatG ?? 0,
           storage: selectedStorage,
           scannedDate: Timestamp.fromDate(new Date())
         });
@@ -121,13 +131,13 @@ const FoodScanResultScreen = ({ route, navigation }) => {
       alert('✅ All foods saved!');
       navigation.navigate('Food List');
     } catch (e) {
-      console.error('Error saving all foods:', e.message);
+
     }
   };
 
   return (
     <View style={styles.container}>
-      {/* If multiple results, show selector */}
+
       {foodList.length > 1 && (
         <View style={{ marginBottom: 10 }}>
           <Text variant="titleMedium" style={{ marginBottom: 8 }}>
@@ -224,7 +234,7 @@ const FoodScanResultScreen = ({ route, navigation }) => {
         </Button>
       </ScrollView>
 
-      {/* Storage Modal */}
+
       <Modal visible={modalVisible} transparent animationType="slide">
         <View style={styles.modalBackground}>
           <View style={styles.modalContainer}>
