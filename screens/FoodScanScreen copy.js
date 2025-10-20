@@ -1,8 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { View, Image } from 'react-native';
 import { Button, Text, ActivityIndicator } from 'react-native-paper';
-import { CameraView, useCameraPermissions } from 'expo-camera'; // Expo SDK 51+
-import * as ImagePicker from 'expo-image-picker'; // optional, for simulator fallback
+import { CameraView, useCameraPermissions } from 'expo-camera'; 
+import * as ImagePicker from 'expo-image-picker'; 
 
 export default function ScanAndSnap() {
   const cameraRef = useRef(null);
@@ -14,8 +14,8 @@ export default function ScanAndSnap() {
   const [loading, setLoading] = useState(false);
 
   // barcode state
-  const [barcode, setBarcode] = useState(null); // { data, type }
-  const [barcodePaused, setBarcodePaused] = useState(false); // prevent spamming
+  const [barcode, setBarcode] = useState(null); 
+  const [barcodePaused, setBarcodePaused] = useState(false); 
 
   useEffect(() => {
     if (!permission) requestPermission();
@@ -24,7 +24,7 @@ export default function ScanAndSnap() {
   const takePicture = async () => {
     try {
       setLoading(true);
-      setBarcode(null); // clear prior barcode result
+      setBarcode(null); 
       const photo = await cameraRef.current?.takePictureAsync({ base64: true, quality: 0.8 });
       if (photo?.uri) {
         setPhotoUri(photo.uri);
@@ -35,21 +35,21 @@ export default function ScanAndSnap() {
     }
   };
 
-  // Handle barcode hits from the live preview
+
   const handleBarcodeScanned = ({ data, type }) => {
     if (barcodePaused) return;
     setBarcode({ data, type });
     console.log("Barcode:", data)
     setBarcodePaused(true);
-    // resume scanning after a short delay if you want continuous scanning:
+
     setTimeout(() => setBarcodePaused(false), 1500);
   };
 
   const sendToOpenAI = async (base64) => {
-    // your existing logic
+
   };
 
-  // Optional: fallback on simulator (no real camera)
+
   const pickFromLibraryOnSimulator = async () => {
     const res = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaType.Images,
@@ -78,7 +78,7 @@ export default function ScanAndSnap() {
 
   return (
     <View style={{ flex: 1, padding: 16 }}>
-      {/* Live camera with barcode scanning */}
+
       <CameraView
   ref={cameraRef}
   style={{ flex: 1, borderRadius: 12, overflow: 'hidden' }}
@@ -92,7 +92,7 @@ export default function ScanAndSnap() {
   onBarcodeScanned={handleBarcodeScanned}
 />
 
-      {/* Controls */}
+
       <View style={{ flexDirection: 'row', marginTop: 12 }}>
         <Button mode="contained" onPress={takePicture} style={{ flex: 1, marginRight: 8 }}>
           {photoUri ? 'Retake Picture' : 'Take Picture'}
@@ -110,7 +110,7 @@ export default function ScanAndSnap() {
         )}
       </View>
 
-      {/* Barcode result */}
+
       {barcode && (
         <View style={{ marginTop: 10 }}>
           <Text variant="titleSmall">Barcode detected</Text>
@@ -119,7 +119,7 @@ export default function ScanAndSnap() {
         </View>
       )}
 
-      {/* Photo preview */}
+
       {photoUri && (
         <View style={{ marginTop: 12, alignItems: 'center' }}>
           <Image source={{ uri: photoUri }} style={{ width: '100%', height: 200, borderRadius: 12 }} />
