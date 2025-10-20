@@ -6,7 +6,7 @@ import * as ImagePicker from 'expo-image-picker';
 import OpenAI from 'openai';
 import * as ImageManipulator from 'expo-image-manipulator';
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { storage } from '../firebase'; // make sure firebase.js exports your storage instance
+import { storage } from '../firebase'; 
 import Tesseract from 'tesseract.js';
 
 export default function FoodScanScreen({ navigation }) {
@@ -52,10 +52,9 @@ export default function FoodScanScreen({ navigation }) {
     try {
       console.log('Uploading Base64 image...');
 
-      // Create a data URL from base64
       const dataUrl = `data:image/jpeg;base64,${base64Data}`;
 
-      // ✅ This works in React Native / Expo
+
       const response = await fetch(dataUrl);
       const blob = await response.blob();
 
@@ -87,19 +86,19 @@ export default function FoodScanScreen({ navigation }) {
 
   const runOcrLocally = async (base64) => {
     try {
-      // ✅ Ensure full data URI header — OCR.space requires this exact format
+
       const dataUri = `data:image/jpeg;base64,${base64}`;
 
       const formData = new FormData();
       formData.append("base64Image", dataUri);
       formData.append("language", "eng");
       formData.append("isOverlayRequired", false);
-      formData.append("OCREngine", 2); // newer, more accurate OCR engine
+      formData.append("OCREngine", 2); 
 
       const res = await fetch("https://api.ocr.space/parse/image", {
         method: "POST",
         headers: {
-          apikey: "K82189494088957", // 👈 replace this with your real key
+          apikey: "K82189494088957",
         },
         body: formData,
       });
@@ -107,7 +106,7 @@ export default function FoodScanScreen({ navigation }) {
       const result = await res.json();
       console.log("🔍 OCR raw response:", JSON.stringify(result, null, 2));
 
-      // Handle errors gracefully
+
       if (result.IsErroredOnProcessing) {
         console.error("🔥 OCR Error:", result.ErrorMessage || result.ErrorDetails);
         return "";
@@ -128,10 +127,10 @@ export default function FoodScanScreen({ navigation }) {
     setLoading(true);
 
     try {
-      // 1️⃣ Extract raw text with OCR.space (no image upload)
+
       const receiptText = await runOcrLocally(base64);
 
-      // 2️⃣ Parse food items using GPT
+
       const instruction = `
       You are a food receipt parser.
       Extract food items and their approximate quantities from the following receipt text.
@@ -172,11 +171,11 @@ export default function FoodScanScreen({ navigation }) {
       const resultText = resp.choices[0].message.content.trim();
       console.log("✅ GPT Parsed:", resultText);
 
-      // 🧹 Clean GPT output (remove markdown fences, code blocks, stray chars)
+  
       const cleanText = resultText
-        .replace(/```json/i, "")   // remove starting ```json
-        .replace(/```/g, "")       // remove ending ```
-        .replace(/^\s+|\s+$/g, ""); // trim whitespace
+        .replace(/```json/i, "")  
+        .replace(/```/g, "")      
+        .replace(/^\s+|\s+$/g, ""); 
 
       let foodList = [];
       try {
@@ -211,7 +210,7 @@ export default function FoodScanScreen({ navigation }) {
     console.log("#### Food info:", info)
     if (info) {
       console.log("Navigate")
-      navigation.navigate('Scan Result', { food: info }); // send info to result page
+      navigation.navigate('Scan Result', { food: info });
     }
 
     setTimeout(() => setBarcodePaused(false), 1500);
@@ -240,7 +239,7 @@ export default function FoodScanScreen({ navigation }) {
         calories: nutr.calories != null ? Number(nutr.calories) : null,
         fat: nutr.fat != null ? Number(nutr.fat) : null,
         protein: nutr.protein != null ? Number(nutr.protein) : null,
-        carb: nutr.carbs != null ? Number(nutr.carbs) : null,   // ✅ added carbs
+        carb: nutr.carbs != null ? Number(nutr.carbs) : null,  
         servingSize: p.serving_size || null,
         basis: nutr.basis,
         brand: p.brands || null,
@@ -280,7 +279,7 @@ export default function FoodScanScreen({ navigation }) {
 
   return (
     <View style={{ flex: 1, padding: 16 }}>
-      {/* Live Camera */}
+
       <CameraView
         ref={cameraRef}
         style={{ flex: 1, borderRadius: 12, overflow: 'hidden' }}
@@ -291,7 +290,6 @@ export default function FoodScanScreen({ navigation }) {
         onBarcodeScanned={handleBarcodeScanned}
       />
 
-      {/* Buttons */}
       <View style={{ flexDirection: 'row', marginTop: 12 }}>
         <Button mode="contained" onPress={takePicture} style={{ flex: 1, marginRight: 8 }}>
           {photoUri ? 'Rescan' : 'Scan Receipt'}
@@ -299,7 +297,7 @@ export default function FoodScanScreen({ navigation }) {
         {photoUri && (
           <Button
             mode="contained-tonal"
-            onPress={() => sendToOpenAI(photoBase64)}   // 👈 use photoUri instead of photoBase64
+            onPress={() => sendToOpenAI(photoBase64)} 
             style={{ flex: 1 }}
             loading={loading}
             disabled={loading}
@@ -309,7 +307,7 @@ export default function FoodScanScreen({ navigation }) {
         )}
       </View>
 
-      {/* Image Preview */}
+
       {photoUri && (
         <View style={{ marginTop: 12, alignItems: 'center' }}>
           <Image source={{ uri: photoUri }} style={{ width: '100%', height: 200, borderRadius: 12 }} />
