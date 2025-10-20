@@ -97,7 +97,7 @@ const FoodListScreen = ({ navigation }) => {
           data={filteredFoods}
           renderItem={renderFoodList}
           keyExtractor={(item) => item.id}
-          scrollEnabled={false} // disable since ScrollView is wrapping
+          scrollEnabled={false}
         />
 
         <View style={{flexDirection:"row", justifyContent:'space-around', marginTop: 20}}>
