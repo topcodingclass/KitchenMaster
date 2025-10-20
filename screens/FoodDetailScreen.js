@@ -109,7 +109,7 @@ const FoodDetailScreen = ({ route, navigation }) => {
   return (
     <ScrollView 
       style={{ flex: 1, padding: 16 }}
-      contentContainerStyle={{ paddingBottom: 80 }} // extra space for scrolling past buttons
+      contentContainerStyle={{ paddingBottom: 130 }} 
     >
       <TextInput label="Name" value={name} onChangeText={setName} mode="outlined" style={{ marginBottom: 12 }} />
       <TextInput label="Quantity" value={quantity} onChangeText={setQuantity} mode="outlined" style={{ marginBottom: 12 }} />
@@ -117,7 +117,6 @@ const FoodDetailScreen = ({ route, navigation }) => {
       <TextInput label="Type" value={type} onChangeText={setType} mode="outlined" style={{ marginBottom: 12 }} />
       <TextInput label="Mass" value={mass} onChangeText={setMass} mode="outlined" style={{ marginBottom: 12 }} />
 
-      {/* Nutrition fields */}
       <TextInput label="Calories" value={calories} onChangeText={setCalories} mode="outlined" style={{ marginBottom: 12 }} keyboardType="numeric" />
       <TextInput label="Protein (g)" value={protein} onChangeText={setProtein} mode="outlined" style={{ marginBottom: 12 }} keyboardType="numeric" />
       <TextInput label="Carbs (g)" value={carb} onChangeText={setCarb} mode="outlined" style={{ marginBottom: 12 }} keyboardType="numeric" />
@@ -129,11 +128,10 @@ const FoodDetailScreen = ({ route, navigation }) => {
         Select Storage
       </Button>
 
-      {/* Modal for storage selection */}
       <Modal visible={modalVisible} transparent animationType="slide">
         <View style={{ flex: 1, justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.4)', padding: 16 }}>
           <View style={{ backgroundColor: 'white', borderRadius: 8, padding: 16 }}>
-            <Text variant="titleMedium" style={{ marginBottom: 12 }}>Select Existing Storage</Text>
+            <Text variant="titleMedium" style={{ marginBottom: 20 }}>Select Existing Storage</Text>
 
             <FlatList
               data={storages}
