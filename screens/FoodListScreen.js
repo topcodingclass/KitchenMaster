@@ -1,14 +1,18 @@
 import { StyleSheet, View, SafeAreaView, FlatList, TouchableOpacity, Image, ScrollView } from 'react-native';
 import { Button, Text, Divider, Searchbar } from 'react-native-paper';
 import React, { useState, useLayoutEffect, useCallback } from 'react';
-import { collection, getDocs } from "firebase/firestore"; 
+import { collection, getDocs, query, where } from "firebase/firestore"; 
 import { useFocusEffect } from '@react-navigation/native';
 import { db } from '../firebase';
+import { getAuth } from "firebase/auth";
 
 const FoodListScreen = ({ navigation }) => {
   const [foods, setFoods] = useState([]);
   const [filteredFoods, setFilteredFoods] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
+
+  const auth = getAuth();
+  const user = auth.currentUser;
 
   useLayoutEffect(() => {
     navigation.setOptions({
@@ -34,7 +38,10 @@ const FoodListScreen = ({ navigation }) => {
     useCallback(() => {
       const fetchFoods = async () => {
         try {
-          const querySnapshot = await getDocs(collection(db, "foods"));
+          if (!user) return; // guard if user not logged in
+
+          const q = query(collection(db, "foods"), where("userID", "==", user.uid));
+          const querySnapshot = await getDocs(q);
           const loadedFoods = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
           setFoods(loadedFoods);
           setFilteredFoods(loadedFoods);
@@ -43,7 +50,7 @@ const FoodListScreen = ({ navigation }) => {
         }
       };
       fetchFoods();
-    }, [])
+    }, [user])
   );
 
   const onChangeSearch = (query) => {
