@@ -180,8 +180,8 @@ const MainScreen = ({ navigation }) => {
         }
 
         // Update timestamp in Firestore
-        if (data.fire?.isOn) await updateDoc(alertDocRef, { 'fire.timestamp': serverTimestamp() });
-        if (data.water?.isDetected) await updateDoc(alertDocRef, { 'water.timestamp': serverTimestamp() });
+        // if (data.fire?.isOn) await updateDoc(alertDocRef, { 'fire.timestamp': serverTimestamp() });
+        // if (data.water?.isDetected) await updateDoc(alertDocRef, { 'water.timestamp': serverTimestamp() });
 
       } catch (error) {
         console.error('Error checking alerts:', error);
@@ -323,7 +323,7 @@ const MainScreen = ({ navigation }) => {
 export default MainScreen;
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#eee', padding: 7 },
+  container: { flex: 1, backgroundColor: '#eee', padding: 4 },
   card: { backgroundColor: '#f9f9f9', marginVertical: 4, padding: 5, borderRadius: 8, borderWidth: 1, borderColor: '#ddd' },
   sectionTitle: { fontWeight: 'bold', fontSize: 16, marginBottom: 5 },
   itemText: { fontSize: 14, marginBottom: 4 },
@@ -331,7 +331,7 @@ const styles = StyleSheet.create({
   seeAllText: { color: 'gray', fontStyle: 'italic' },
   centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   welcomeText: { fontSize: 15, fontWeight: '600', color: '#333', marginLeft: 12 },
-  foodRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 6, borderBottomWidth: 1, borderColor: '#e0e0e0' },
+  foodRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 6, borderTopWidth: 1, borderColor: '#e0e0e0' },
   foodName: { fontWeight: '600', flex: 1 },
   foodMeta: { fontSize: 12, color: '#555', marginLeft: 10 },
   todayMealRow: { padding: 12, borderWidth: 1, borderColor: '#ccc', borderRadius: 6, marginVertical: 4 },
