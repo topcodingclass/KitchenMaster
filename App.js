@@ -16,6 +16,7 @@ import FoodScanScreen from './screens/FoodScanScreen';
 import CommunityRecipeScreen from './screens/CommunityRecipeScreen';
 import CommunityRecipeDetailScreen from './screens/CommunityRecipeDetailScreen';
 import FoodListScreen from './screens/FoodListScreen';
+import FoodManualAddScreen from './screens/FoodManualAddScreen';
 import FoodDetailScreen from './screens/FoodDetailScreen';
 import FoodScanResultScreen from './screens/FoodScanResultScreen';
 import RegisterScreen from './screens/RegisterScreen';
@@ -24,6 +25,7 @@ import StorageListScreen from './screens/StorageListScreen';
 import StorageDetailScreen from './screens/StorageDetailScreen';
 import MainScreen from './screens/MainScreen';
 import MealPlannerScreen from './screens/MealPlannerScreen';
+import MealPlannerDetailScreen from './screens/MealPlannerDetailScreen';
 
 
 const Stack = createNativeStackNavigator();
@@ -42,8 +44,10 @@ const App = () => {
             <Stack.Screen name="Storage List" component={StorageListScreen} />
             <Stack.Screen name="Storage Detail" component={StorageDetailScreen} />
             <Stack.Screen name="Meal Planner" component={MealPlannerScreen} />
+            <Stack.Screen name="Meal Planner Detail" component={MealPlannerDetailScreen} /> 
           <Stack.Screen name="Food Scan" component={FoodScanScreen} />
           <Stack.Screen name="Food List" component={FoodListScreen} />
+          <Stack.Screen name="Food Manual Add" component={FoodManualAddScreen} />
           <Stack.Screen name="Food Detail" component={FoodDetailScreen} />
           <Stack.Screen name="Scan Result" component={FoodScanResultScreen} />
           <Stack.Screen name="Recipe List" component={RecipeListScreen} />
