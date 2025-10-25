@@ -125,16 +125,23 @@ const MainScreen = ({ navigation }) => {
           const mealQuery = query(
             mealPlansRef,
             where('userID', '==', userID),
-            where('date', '>=', startOfDay.toISOString()),
+         //   where('date', '>=', startOfDay.toISOString()),
             where('date', '<=', endOfDay.toISOString())
           );
 
+          console.log(startOfDay.toISOString())
+          console.log(endOfDay.toISOString())
+
           const mealSnap = await getDocs(mealQuery);
+          const mealsPlan = mealSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+          console.log(mealsPlan)
 
           if (!mealSnap.empty) {
             const parentDoc = mealSnap.docs[0].ref;
             const subSnapshot = await getDocs(collection(parentDoc, 'mealPlan'));
             const meals = subSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            
             setTodayMeal(meals);
           } else {
             setTodayMeal([]);
@@ -180,8 +187,8 @@ const MainScreen = ({ navigation }) => {
         }
 
         // Update timestamp in Firestore
-        // if (data.fire?.isOn) await updateDoc(alertDocRef, { 'fire.timestamp': serverTimestamp() });
-        // if (data.water?.isDetected) await updateDoc(alertDocRef, { 'water.timestamp': serverTimestamp() });
+        if (data.fire?.isOn) await updateDoc(alertDocRef, { 'fire.timestamp': serverTimestamp() });
+        if (data.water?.isDetected) await updateDoc(alertDocRef, { 'water.timestamp': serverTimestamp() });
 
       } catch (error) {
         console.error('Error checking alerts:', error);
@@ -334,10 +341,10 @@ const styles = StyleSheet.create({
   foodRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 6, borderTopWidth: 1, borderColor: '#e0e0e0' },
   foodName: { fontWeight: '600', flex: 1 },
   foodMeta: { fontSize: 12, color: '#555', marginLeft: 10 },
-  todayMealRow: { padding: 12, borderWidth: 1, borderColor: '#ccc', borderRadius: 6, marginVertical: 4 },
+  todayMealRow: { flexDirection: 'row', justifyContent: 'space-between',  },
   mealDivider: { height: 1, backgroundColor: '#ccc', marginVertical: 4 },
   mealType: { fontWeight: '600', fontSize: 14 },
-  mealName: { fontSize: 16, fontWeight: 'bold', marginTop: 2 },
+  mealName: { fontSize: 13, fontWeight: 'bold', marginTop: 2 },
   bottomNav: { position: 'absolute', bottom: 20, width: '100%', paddingLeft: 15, flexDirection: 'row', justifyContent: 'space-around' },
   headerAlertIcon: {
     alignItems: 'center',
