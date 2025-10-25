@@ -42,14 +42,15 @@ const MealPlannerScreen = ({ navigation }) => {
       try {
         // Calculate the start and end of the selected day
         const startOfDay = new Date(selectedDate);
-        startOfDay.setHours(0, 0, 0, 0);
+        startOfDay.setUTCHours(0, 0, 0, 0);
 
         const endOfDay = new Date(selectedDate);
-        endOfDay.setHours(23, 59, 59, 999);
-
+        endOfDay.setUTCHours(23, 59, 59, 999);
         // 🔥 Query only mealPlans for the selected date
         const mealPlansRef = collection(db, 'mealPlans');
         const snapshot = await getDocs(mealPlansRef);
+
+        console.log("Start Date", startOfDay, 'end date', endOfDay)
 
         // Filter only the parent docs belonging to this user & date range
         const userPlans = snapshot.docs.filter(docSnap => {
