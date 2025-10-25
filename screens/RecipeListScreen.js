@@ -1,7 +1,7 @@
 // RecipeListScreen.js
 import React, { useState } from 'react';
 import { View, FlatList, StyleSheet, Alert, ActivityIndicator } from 'react-native';
-import { Text, Button, Card, Title, Paragraph, Divider } from 'react-native-paper';
+import { Text, Button, Card, Paragraph, Divider, Menu } from 'react-native-paper';
 import { collection, getDocs } from 'firebase/firestore';
 import { db } from '../firebase';
 import OpenAI from 'openai';
@@ -9,7 +9,19 @@ import OpenAI from 'openai';
 const RecipeListScreen = ({ navigation }) => {
   const [recipes, setRecipes] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [hasGenerated, setHasGenerated] = useState(false); 
+  const [hasGenerated, setHasGenerated] = useState(false);
+  const [menuVisible, setMenuVisible] = useState(false);
+  const [preference, setPreference] = useState('None');
+
+  const dietaryOptions = [
+    'None',
+    'Vegetarian',
+    'Vegan',
+    'Diabetes-friendly',
+    'Gluten-free',
+    'Keto',
+    'Low-calorie',
+  ];
 
   const fetchUserFoods = async () => {
     try {
@@ -22,24 +34,30 @@ const RecipeListScreen = ({ navigation }) => {
   };
 
   const client = new OpenAI({
-    apiKey: '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', 
+    apiKey: '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',
     dangerouslyAllowBrowser: true,
   });
 
-  const getRecipesFromAI = async (foods) => {
+  const getRecipesFromAI = async (foods, pref) => {
     try {
+      const preferenceText =
+        pref && pref !== 'None'
+          ? `Make sure all recipes are suitable for a ${pref.toLowerCase()} diet.`
+          : '';
+
       const prompt = `
         You are a helpful recipe generator.
         Only use the following ingredients: ${foods.join(", ")}.
+        ${preferenceText}
         Generate 5 recipes in JavaScript array format, like this:
         [
           {
             name: "Recipe Name",
             type: "Main / Side / Dessert / etc",
             ingredients: [
-                            { ingredient: "ingredient1", quantity: "amount" },
-                            { ingredient: "ingredient2", quantity: "amount" }
-                          ],
+              { ingredient: "ingredient1", quantity: "amount" },
+              { ingredient: "ingredient2", quantity: "amount" }
+            ],
             steps: [
               { sequence: 1, description: "Step 1", time: "5 min" },
               { sequence: 2, description: "Step 2", time: "10 min" }
@@ -76,15 +94,18 @@ const RecipeListScreen = ({ navigation }) => {
     }
     try {
       setLoading(true);
-      await getRecipesFromAI(foods);
-      setHasGenerated(true); 
+      await getRecipesFromAI(foods, preference);
+      setHasGenerated(true);
     } finally {
       setLoading(false);
     }
   };
 
   const displayRecipe = ({ item }) => (
-    <Card style={styles.card} onPress={() => navigation.navigate('Recipe Detail', { recipe: item })}>
+    <Card
+      style={styles.card}
+      onPress={() => navigation.navigate('Recipe Detail', { recipe: item })}
+    >
       <Card.Content>
         <Text variant="titleMedium">{item.name}</Text>
         <Paragraph>🍽 Type: {item.type}</Paragraph>
@@ -97,20 +118,49 @@ const RecipeListScreen = ({ navigation }) => {
 
   const renderHeader = () => (
     <>
-      <Button 
-        mode="contained" 
-        onPress={generateRecipe} 
+      <View style={styles.dropdownContainer}>
+        <Menu
+          visible={menuVisible}
+          onDismiss={() => setMenuVisible(false)}
+          anchor={
+            <Button
+              mode="outlined"
+              onPress={() => setMenuVisible(true)}
+              style={styles.dropdownButton}
+            >
+              {preference === 'None' ? 'Select Preference' : preference}
+            </Button>
+          }
+        >
+          {dietaryOptions.map((option) => (
+            <Menu.Item
+              key={option}
+              onPress={() => {
+                setPreference(option);
+                setMenuVisible(false);
+              }}
+              title={option}
+            />
+          ))}
+        </Menu>
+      </View>
+
+      <Button
+        mode="contained"
+        onPress={generateRecipe}
         disabled={loading}
         style={styles.button}
       >
         {loading ? 'Generating...' : hasGenerated ? 'Generate More' : 'Generate Recipes'}
       </Button>
+
       {loading && (
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#6200ee" />
-          <Text style={styles.loadingText}>Please wait. AI is currently generating your recipes</Text>
+          <Text style={styles.loadingText}>Please wait. AI is generating your recipes...</Text>
         </View>
       )}
+
       <Divider style={styles.divider} />
     </>
   );
@@ -133,6 +183,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 40,
   },
+  dropdownContainer: {
+    marginBottom: 10,
+    alignItems: 'flex-start',
+  },
+  dropdownButton: {
+    width: '60%',
+  },
   button: {
     marginBottom: 16,
   },
@@ -141,11 +198,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#f8f9fa',
     borderRadius: 10,
     elevation: 2,
-  },
-  recipeName: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginBottom: 4,
   },
   divider: {
     marginBottom: 12,
