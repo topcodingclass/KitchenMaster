@@ -15,10 +15,10 @@ const RecipeListScreen = ({ navigation }) => {
   const dietaryOptions = [
     'Vegetarian',
     'Vegan',
+    'Low-calorie',
     'Diabetes-friendly',
     'Gluten-free',
     'Keto',
-    'Low-calorie',
   ];
 
   const fetchUserFoods = async () => {
@@ -134,8 +134,9 @@ const RecipeListScreen = ({ navigation }) => {
               styles.preferenceButton,
               preferences.includes(option) && styles.preferenceButtonSelected
             ]}
+            labelStyle={styles.preferenceButtonText}
           >
-            {option}
+            {option.includes('-') ? option.replace('-', '\n') : option.includes(' ') ? option.replace(' ', '\n') : option}
           </Button>
         ))}
       </View>
@@ -176,23 +177,33 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     flex: 1,
     paddingHorizontal: 16,
-    paddingTop: 40,
+    paddingTop: 16,
   },
   preferenceContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
+    justifyContent: 'space-between',
     marginBottom: 16,
-    gap: 8,
+    rowGap: 8,
   },
   preferenceButton: {
-    borderRadius: 20,
-    marginRight: 8,
-    marginBottom: 8,
+    width: '32%',    
+    height: 50,         
+    borderRadius: 16,
+    paddingVertical: 0,
+    paddingHorizontal: 4,
+    marginBottom: 0,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   preferenceButtonSelected: {
     backgroundColor: '#6200ee',
     borderColor: '#6200ee',
-    color: '#fff',
+  },
+  preferenceButtonText: {
+    fontSize: 12,
+    textAlign: 'center',
+    lineHeight: 14,
   },
   button: {
     marginBottom: 16,
