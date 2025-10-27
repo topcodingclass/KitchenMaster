@@ -48,7 +48,7 @@ const MainScreen = ({ navigation }) => {
           <TouchableOpacity
             onPress={() => {
               const msg = fireAlert
-                ? `🔥 Fire alert active since ${fireTimestamp?.toLocaleString() ?? 'unknown'}`
+                ? `🔥 Fire alert active since ${fireTimestamp ? fireTimestamp.toLocaleString() : 'unknown'}`
                 : '🔥 Fire alert is inactive';
               Alert.alert('Fire Alert Info', msg);
             }}
@@ -62,7 +62,7 @@ const MainScreen = ({ navigation }) => {
           <TouchableOpacity
             onPress={() => {
               const msg = waterAlert
-                ? `💧 Water alert active since ${waterTimestamp?.toLocaleString() ?? 'unknown'}`
+                ? `💧 Water alert active since ${waterTimestamp ? waterTimestamp.toLocaleString() : 'unknown'}`
                 : '💧 Water alert is inactive';
               Alert.alert('Water Alert Info', msg);
             }}
@@ -125,17 +125,12 @@ const MainScreen = ({ navigation }) => {
           const mealQuery = query(
             mealPlansRef,
             where('userID', '==', userID),
-         //   where('date', '>=', startOfDay.toISOString()),
+            // where('date', '>=', startOfDay.toISOString()),
             where('date', '<=', endOfDay.toISOString())
           );
 
-          console.log(startOfDay.toISOString())
-          console.log(endOfDay.toISOString())
-
           const mealSnap = await getDocs(mealQuery);
           const mealsPlan = mealSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-
-          console.log(mealsPlan)
 
           if (!mealSnap.empty) {
             const parentDoc = mealSnap.docs[0].ref;
@@ -170,19 +165,22 @@ const MainScreen = ({ navigation }) => {
         if (!docSnap.exists()) return;
         const data = docSnap.data();
 
-        // Update alerts and timestamps
+        // Update alerts and timestamps safely
+        const fireTS = data.fire?.timestamp?.toDate ? data.fire.timestamp.toDate() : null;
+        const waterTS = data.water?.timestamp?.toDate ? data.water.timestamp.toDate() : null;
+
         setFireAlert(data.fire?.isOn ?? false);
         setWaterAlert(data.water?.isDetected ?? false);
-        setFireTimestamp(data.fire?.timestamp ? data.fire.timestamp.toDate() : null);
-        setWaterTimestamp(data.water?.timestamp ? data.water.timestamp.toDate() : null);
+        setFireTimestamp(fireTS);
+        setWaterTimestamp(waterTS);
 
         // Show alert popups once
         if (data.fire?.isOn && !fireAlertSent) {
-          Alert.alert('🔥 Fire Alert!', 'Fire has been detected.');
+          Alert.alert('🔥 Fire Alert!', `Fire detected at ${fireTS?.toLocaleString() ?? 'unknown'}`);
           setFireAlertSent(true);
         }
         if (data.water?.isDetected && !waterAlertSent) {
-          Alert.alert('💧 Water Alert!', 'Water has been detected.');
+          Alert.alert('💧 Water Alert!', `Water detected at ${waterTS?.toLocaleString() ?? 'unknown'}`);
           setWaterAlertSent(true);
         }
 
@@ -346,13 +344,6 @@ const styles = StyleSheet.create({
   mealType: { fontWeight: '600', fontSize: 14 },
   mealName: { fontSize: 13, fontWeight: 'bold', marginTop: 2 },
   bottomNav: { position: 'absolute', bottom: 20, width: '100%', paddingLeft: 15, flexDirection: 'row', justifyContent: 'space-around' },
-  headerAlertIcon: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: 'transparent',
-    borderRadius: 8,
-    padding: 3,
-    marginRight: 6,
-  },
+  headerAlertIcon: {alignItems: 'center',justifyContent: 'center',
+  borderWidth: 1,borderColor: 'transparent',borderRadius: 8,padding: 3,marginRight: 6,},
 });
