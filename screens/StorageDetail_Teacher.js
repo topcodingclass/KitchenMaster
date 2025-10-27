@@ -5,6 +5,7 @@ import { collection, getDocs, deleteDoc, doc, query, where, updateDoc } from 'fi
 import { db, storage as fbStorage } from '../firebase';
 import * as ImagePicker from 'expo-image-picker';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { getAuth } from 'firebase/auth';
 
 const formatExpirationDate = (dateValue) => {
   if (!dateValue) return 'No date';
@@ -16,13 +17,14 @@ const formatExpirationDate = (dateValue) => {
 
 const StorageDetailScreen = ({ route, navigation }) => {
   const { storage } = route.params;
+  const auth = getAuth();
+  const user = auth.currentUser;
 
   const [items, setItems] = useState([]);
   const [allStorages, setAllStorages] = useState([]);
   const [moveModalVisible, setMoveModalVisible] = useState(false);
   const [selectedFoodId, setSelectedFoodId] = useState(null);
 
-  // doc id & picture come from route.params if present; otherwise we’ll resolve by name
   const [storageDocId, setStorageDocId] = useState(storage?.id ?? null);
   const [imageurl, setImageurl] = useState(storage?.picture ?? null);
   const [uploadStatus, setUploadStatus] = useState('');
@@ -40,12 +42,15 @@ const StorageDetailScreen = ({ route, navigation }) => {
 
   const ensureStorageDocId = async () => {
     if (storageDocId) return storageDocId;
-    const q = query(collection(db, 'storages'), where('name', '==', storage.name));
+    const q = query(
+      collection(db, 'storages'),
+      where('name', '==', storage.name),
+      where('userID', '==', user.uid)
+    );
     const snap = await getDocs(q);
     if (snap.empty) throw new Error('Storage doc not found');
     const d = snap.docs[0];
     setStorageDocId(d.id);
-    // hydrate existing picture
     const pic = d.data().picture || null;
     if (pic && !imageurl) setImageurl(pic);
     return d.id;
@@ -53,7 +58,6 @@ const StorageDetailScreen = ({ route, navigation }) => {
 
   const pickImage = async () => {
     try {
-      // (Optional) permission check – iOS requires it
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (status !== 'granted') {
         alert('Photo library permission is required.');
@@ -67,7 +71,7 @@ const StorageDetailScreen = ({ route, navigation }) => {
         quality: 0.9,
       });
 
-      if (!result.canceled && result.assets && result.assets.length > 0) {
+      if (!result.canceled && result.assets?.length > 0) {
         const uri = result.assets[0].uri;
         await uploadImage(uri);
       }
@@ -81,7 +85,6 @@ const StorageDetailScreen = ({ route, navigation }) => {
     try {
       setUploadStatus('Uploading...');
       const id = await ensureStorageDocId();
-
       const resp = await fetch(uri);
       const blob = await resp.blob();
 
@@ -94,7 +97,6 @@ const StorageDetailScreen = ({ route, navigation }) => {
       const url = await getDownloadURL(storageRef);
 
       await updateDoc(doc(db, 'storages', id), { picture: url });
-
       setImageurl(url);
       navigation.setParams({ storage: { ...storage, id, picture: url } });
       setUploadStatus('Upload successful');
@@ -107,7 +109,12 @@ const StorageDetailScreen = ({ route, navigation }) => {
 
   const fetchItems = async () => {
     try {
-      const qFoods = query(collection(db, 'foods'), where('storage', '==', storage.name));
+      if (!user) return;
+      const qFoods = query(
+        collection(db, 'foods'),
+        where('storage', '==', storage.name),
+        where('userID', '==', user.uid)
+      );
       const snapshot = await getDocs(qFoods);
       setItems(snapshot.docs.map((d) => ({ id: d.id, ...d.data() })));
     } catch (e) {
@@ -117,8 +124,17 @@ const StorageDetailScreen = ({ route, navigation }) => {
 
   const fetchAllStorages = async () => {
     try {
-      const snapshot = await getDocs(collection(db, 'storages'));
-      setAllStorages(snapshot.docs.map((d) => d.data().name).filter((name) => name !== storage.name));
+      if (!user) return;
+      const qStorages = query(
+        collection(db, 'storages'),
+        where('userID', '==', user.uid)
+      );
+      const snapshot = await getDocs(qStorages);
+      setAllStorages(
+        snapshot.docs
+          .map((d) => d.data().name)
+          .filter((name) => name !== storage.name)
+      );
     } catch (e) {
       console.error('Error fetching storages: ', e);
     }
@@ -127,11 +143,10 @@ const StorageDetailScreen = ({ route, navigation }) => {
   useEffect(() => {
     fetchItems();
     fetchAllStorages();
-    // hydrate picture/id if not passed via params
     if (!storageDocId || imageurl == null) {
       ensureStorageDocId().catch(() => {});
     }
-  }, [storage.name]);
+  }, [storage.name, user]);
 
   const deleteStorage = async () => {
     if (items.length > 0) {
@@ -244,7 +259,7 @@ const StorageDetailScreen = ({ route, navigation }) => {
         )}
       </View>
 
-      <View style={{ margin:10, paddingBottom: 20 }}>
+      <View style={{ margin: 10, paddingBottom: 20 }}>
         <Button icon="delete" mode="contained" onPress={deleteStorage}>
           Delete Storage
         </Button>
