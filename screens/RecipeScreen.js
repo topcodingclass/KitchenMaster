@@ -96,7 +96,7 @@ const RecipeScreen = ({ route, navigation }) => {
 
     let recipeID = recipe.id;
 
-    // 🧠 If the recipe isn't saved yet, save it first
+    // If the recipe isn't saved yet, save it first
     if (!recipeID) {
       recipeID = await confirmSaveRecipe();
       if (!recipeID) {
@@ -105,14 +105,13 @@ const RecipeScreen = ({ route, navigation }) => {
       }
     }
 
-    // 🔹 Build ISO-like date range (consistent with your Firestore strings)
+    // Build ISO-like date range (consistent with your Firestore strings)
     const year = selectedDate.getFullYear();
     const month = String(selectedDate.getMonth() + 1).padStart(2, "0");
     const day = String(selectedDate.getDate()).padStart(2, "0");
     const startOfDay = `${year}-${month}-${day}T00:00:00.000Z`;
     const endOfDay = `${year}-${month}-${day}T23:59:59.999Z`;
 
-    // ✅ STEP 1: Query mealPlans to find today’s parent document
     const mealPlansRef = collection(db, "mealPlans");
     const q = query(
       mealPlansRef,
@@ -125,18 +124,15 @@ const RecipeScreen = ({ route, navigation }) => {
     let parentDocRef;
 
     if (!snapshot.empty) {
-      // ✅ Existing mealPlans doc for this user/date
       parentDocRef = snapshot.docs[0].ref;
     } else {
-      // ✅ Otherwise, create one
       parentDocRef = await addDoc(mealPlansRef, {
         userID: userId,
-        date: selectedDate.toISOString(), // e.g. "2025-10-13T16:48:54.893Z"
+        date: selectedDate.toISOString(), 
         createdAt: new Date().toISOString(),
       });
     }
 
-    // ✅ STEP 2: Add the new meal into the subcollection "mealPlan"
     const subcollectionRef = collection(parentDocRef, "mealPlan");
 
     await addDoc(subcollectionRef, {
@@ -177,7 +173,7 @@ const RecipeScreen = ({ route, navigation }) => {
     setShowImageDialog(false);
     setImageUrl('');
 
-    return recipeRef.id; // ✅ Return Firestore doc ID
+    return recipeRef.id;
   } catch (error) {
     console.error('Error saving recipe: ', error);
     alert('Failed to save recipe.');
