@@ -1,7 +1,7 @@
 // RecipeListScreen.js
 import React, { useState } from 'react';
 import { View, FlatList, StyleSheet, Alert, ActivityIndicator } from 'react-native';
-import { Text, Button, Card, Paragraph, Divider, Menu } from 'react-native-paper';
+import { Text, Button, Card, Paragraph, Divider } from 'react-native-paper';
 import { collection, getDocs } from 'firebase/firestore';
 import { db } from '../firebase';
 import OpenAI from 'openai';
@@ -10,11 +10,9 @@ const RecipeListScreen = ({ navigation }) => {
   const [recipes, setRecipes] = useState([]);
   const [loading, setLoading] = useState(false);
   const [hasGenerated, setHasGenerated] = useState(false);
-  const [menuVisible, setMenuVisible] = useState(false);
-  const [preference, setPreference] = useState('None');
+  const [preferences, setPreferences] = useState([]); // multi-select
 
   const dietaryOptions = [
-    'None',
     'Vegetarian',
     'Vegan',
     'Diabetes-friendly',
@@ -38,11 +36,19 @@ const RecipeListScreen = ({ navigation }) => {
     dangerouslyAllowBrowser: true,
   });
 
-  const getRecipesFromAI = async (foods, pref) => {
+  const togglePreference = (option) => {
+    if (preferences.includes(option)) {
+      setPreferences(preferences.filter((p) => p !== option));
+    } else {
+      setPreferences([...preferences, option]);
+    }
+  };
+
+  const getRecipesFromAI = async (foods, prefs) => {
     try {
       const preferenceText =
-        pref && pref !== 'None'
-          ? `Make sure all recipes are suitable for a ${pref.toLowerCase()} diet.`
+        prefs.length > 0
+          ? `Make sure all recipes are suitable for: ${prefs.join(", ").toLowerCase()}.`
           : '';
 
       const prompt = `
@@ -94,7 +100,7 @@ const RecipeListScreen = ({ navigation }) => {
     }
     try {
       setLoading(true);
-      await getRecipesFromAI(foods, preference);
+      await getRecipesFromAI(foods, preferences);
       setHasGenerated(true);
     } finally {
       setLoading(false);
@@ -118,31 +124,20 @@ const RecipeListScreen = ({ navigation }) => {
 
   const renderHeader = () => (
     <>
-      <View style={styles.dropdownContainer}>
-        <Menu
-          visible={menuVisible}
-          onDismiss={() => setMenuVisible(false)}
-          anchor={
-            <Button
-              mode="outlined"
-              onPress={() => setMenuVisible(true)}
-              style={styles.dropdownButton}
-            >
-              {preference === 'None' ? 'Select Preference' : preference}
-            </Button>
-          }
-        >
-          {dietaryOptions.map((option) => (
-            <Menu.Item
-              key={option}
-              onPress={() => {
-                setPreference(option);
-                setMenuVisible(false);
-              }}
-              title={option}
-            />
-          ))}
-        </Menu>
+      <View style={styles.preferenceContainer}>
+        {dietaryOptions.map((option) => (
+          <Button
+            key={option}
+            mode={preferences.includes(option) ? 'contained' : 'outlined'}
+            onPress={() => togglePreference(option)}
+            style={[
+              styles.preferenceButton,
+              preferences.includes(option) && styles.preferenceButtonSelected
+            ]}
+          >
+            {option}
+          </Button>
+        ))}
       </View>
 
       <Button
@@ -183,12 +178,21 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 40,
   },
-  dropdownContainer: {
-    marginBottom: 10,
-    alignItems: 'flex-start',
+  preferenceContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginBottom: 16,
+    gap: 8,
   },
-  dropdownButton: {
-    width: '60%',
+  preferenceButton: {
+    borderRadius: 20,
+    marginRight: 8,
+    marginBottom: 8,
+  },
+  preferenceButtonSelected: {
+    backgroundColor: '#6200ee',
+    borderColor: '#6200ee',
+    color: '#fff',
   },
   button: {
     marginBottom: 16,
