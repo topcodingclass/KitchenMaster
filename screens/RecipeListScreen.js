@@ -10,7 +10,7 @@ const RecipeListScreen = ({ navigation }) => {
   const [recipes, setRecipes] = useState([]);
   const [loading, setLoading] = useState(false);
   const [hasGenerated, setHasGenerated] = useState(false);
-  const [preferences, setPreferences] = useState([]); // multi-select
+  const [preferences, setPreferences] = useState([]); 
 
   const dietaryOptions = [
     'Vegetarian',
@@ -32,7 +32,7 @@ const RecipeListScreen = ({ navigation }) => {
   };
 
   const client = new OpenAI({
-    apiKey: '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',
+    apiKey: '****',
     dangerouslyAllowBrowser: true,
   });
 
