@@ -23,7 +23,6 @@ const CommunityRecipeScreen = ({ navigation }) => {
     }
   };
 
-  // 🔄 Automatically reload recipes when coming back to this screen
   useFocusEffect(
     useCallback(() => {
       readRecipes();
