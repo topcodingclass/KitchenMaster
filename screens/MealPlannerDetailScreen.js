@@ -12,7 +12,7 @@ import { auth, db } from "../firebase";
 import { doc, getDoc, deleteDoc } from "firebase/firestore";
 
 const MealPlannerDetailScreen = ({ navigation, route }) => {
-  const { meal } = route.params; // expect: { id, recipeID, mealType, date, recipeName }
+  const { meal } = route.params; 
   const user = auth.currentUser;
 
   const [recipe, setRecipe] = useState(null);
@@ -21,11 +21,11 @@ const MealPlannerDetailScreen = ({ navigation, route }) => {
   useLayoutEffect(() => {
   const mealTitle = `${meal.mealName || meal.recipeName || "Meal Detail"} (${meal.mealType})`;
 
-  // 🔹 Normalize Firestore Timestamp or string to Date
+ 
   let dateObj = null;
   if (meal.date) {
     if (typeof meal.date.toDate === "function") {
-      dateObj = meal.date.toDate(); // Firestore Timestamp
+      dateObj = meal.date.toDate(); 
     } else {
       const parsed = new Date(meal.date);
       dateObj = isNaN(parsed.getTime()) ? null : parsed;
@@ -34,10 +34,10 @@ const MealPlannerDetailScreen = ({ navigation, route }) => {
 
   const mealDateStr = dateObj
     ? `${dateObj.toLocaleDateString(undefined, {
-        weekday: "short",   // e.g. "Sun"
-        month: "short",     // e.g. "Aug"
-        day: "numeric",     // e.g. "17"
-        year: "numeric",    // e.g. "2025"
+        weekday: "short",  
+        month: "short",    
+        day: "numeric",
+        year: "numeric",
       })}`
     : "";
 
@@ -61,19 +61,19 @@ const MealPlannerDetailScreen = ({ navigation, route }) => {
 
 
 
-// Put this helper above your component (or inside it)
+
 const resolveDate = (d) => {
   if (!d) return null;
-  // Firestore Timestamp
+  
   if (typeof d?.toDate === "function") return d.toDate();
-  // Seconds-based (in case you ever see { _seconds })
+ 
   if (typeof d?._seconds === "number") return new Date(d._seconds * 1000);
-  // ISO string
+
   if (typeof d === "string") {
     const t = Date.parse(d);
     return Number.isNaN(t) ? null : new Date(t);
   }
-  // Milliseconds since epoch
+  
   if (typeof d === "number") {
     const dt = new Date(d);
     return Number.isNaN(dt.getTime()) ? null : dt;
@@ -83,7 +83,7 @@ const resolveDate = (d) => {
 
 
 
-  // 🥘 Load recipe info by recipeID
+
   useEffect(() => {
     console.log("Fetch recipe");
     const fetchRecipe = async () => {
@@ -113,7 +113,7 @@ const resolveDate = (d) => {
     fetchRecipe();
   }, [meal.recipeID]);
 
-  // 🗑 Delete meal plan
+
   const handleDeleteMeal = async () => {
     if (!user || !meal?.id) {
       Alert.alert("Error", "Missing meal info or user not logged in.");
@@ -141,12 +141,12 @@ const resolveDate = (d) => {
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: "#f7f7f7" }}>
       <ScrollView contentContainerStyle={styles.container}>
-        {/* ✅ Optional image at top */}
+       
         {recipe?.picture && (
           <Image source={{ uri: recipe.picture }} style={styles.image} />
         )}
 
-        {/* Meal Summary */}
+      
         <Card style={styles.card}>
           <Card.Content>
             <Text style={styles.title}>{recipe?.name || meal.recipeName}</Text>
@@ -157,10 +157,10 @@ const resolveDate = (d) => {
           </Card.Content>
         </Card>
 
-        {/* Recipe Details */}
+     
         {recipe ? (
           <>
-            {/* Ingredients */}
+          
             <Card style={styles.card}>
               <Card.Content>
                 <Text style={styles.sectionTitle}>Ingredients</Text>
@@ -173,7 +173,7 @@ const resolveDate = (d) => {
               </Card.Content>
             </Card>
 
-            {/* Steps */}
+      
             <Card style={styles.card}>
               <Card.Content>
                 <Text style={styles.sectionTitle}>Steps</Text>
@@ -186,7 +186,7 @@ const resolveDate = (d) => {
               </Card.Content>
             </Card>
 
-            {/* Info */}
+        
             <Card style={styles.card}>
               <Card.Content>
                 <Text style={styles.sectionTitle}>Recipe Info</Text>
@@ -206,7 +206,7 @@ const resolveDate = (d) => {
           </Text>
         )}
 
-        {/* Delete Button */}
+      
         <Button
           mode="outlined"
           onPress={handleDeleteMeal}
