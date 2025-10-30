@@ -1,288 +1,267 @@
+import React, { useEffect, useState, useLayoutEffect } from "react";
 import {
   StyleSheet,
   View,
   SafeAreaView,
-  FlatList,
-  TouchableOpacity,
-} from 'react-native';
-import React, { useEffect, useState } from 'react';
-import { TextInput, Text, Divider, Button } from 'react-native-paper';
-import { collection, getDocs, addDoc, doc } from 'firebase/firestore';
-import { auth, db } from '../firebase';
+  ScrollView,
+  Alert,
+  Image,
+} from "react-native";
+import { Text, Button, Card } from "react-native-paper";
+import { auth, db } from "../firebase";
+import { doc, getDoc, deleteDoc } from "firebase/firestore";
 
-const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-
-const MealPlannerScreen = ({ navigation }) => {
+const MealPlannerDetailScreen = ({ navigation, route }) => {
+  const { meal } = route.params; // expect: { id, recipeID, mealType, date, recipeName }
   const user = auth.currentUser;
 
-  const [weekOffset, setWeekOffset] = useState(0);
-  const baseDate = new Date();
-  const todayIndex = baseDate.getDay(); // 0 = Sun, 1 = Mon, ..., 6 = Sat
-  // Move backwards to Sunday, then apply weekOffset
-  const weekStart = new Date(
-    baseDate.getFullYear(),
-    baseDate.getMonth(),
-    baseDate.getDate() - todayIndex + weekOffset * 7
-  );
+  const [recipe, setRecipe] = useState(null);
+  const [loading, setLoading] = useState(true);
 
-  const [meals, setMeals] = useState([]);
-  const [mealName, setMealName] = useState('');
-  const [mealDay, setMealDay] = useState(DAYS[new Date().getDay()]);
+  useLayoutEffect(() => {
+  const mealTitle = `${meal.mealName || meal.recipeName || "Meal Detail"} (${meal.mealType})`;
 
-  // compute actual selected date for the week
-  const dayIndex = DAYS.indexOf(mealDay);
-  const selectedDate = new Date(weekStart);
-  selectedDate.setDate(weekStart.getDate() + dayIndex);
-  const todayString = selectedDate.toDateString();
+  // 🔹 Normalize Firestore Timestamp or string to Date
+  let dateObj = null;
+  if (meal.date) {
+    if (typeof meal.date.toDate === "function") {
+      dateObj = meal.date.toDate(); // Firestore Timestamp
+    } else {
+      const parsed = new Date(meal.date);
+      dateObj = isNaN(parsed.getTime()) ? null : parsed;
+    }
+  }
 
+  const mealDateStr = dateObj
+    ? `${dateObj.toLocaleDateString(undefined, {
+        weekday: "short",   // e.g. "Sun"
+        month: "short",     // e.g. "Aug"
+        day: "numeric",     // e.g. "17"
+        year: "numeric",    // e.g. "2025"
+      })}`
+    : "";
+
+  navigation.setOptions({
+    title: mealTitle,
+    headerRight: () =>
+      mealDateStr ? (
+        <Text
+          style={{
+            fontSize: 14,
+            color: "#555",
+            marginRight: 10,
+            fontWeight: "500",
+          }}
+        >
+         For {mealDateStr}
+        </Text>
+      ) : null,
+  });
+}, [navigation, meal]);
+
+
+
+// Put this helper above your component (or inside it)
+const resolveDate = (d) => {
+  if (!d) return null;
+  // Firestore Timestamp
+  if (typeof d?.toDate === "function") return d.toDate();
+  // Seconds-based (in case you ever see { _seconds })
+  if (typeof d?._seconds === "number") return new Date(d._seconds * 1000);
+  // ISO string
+  if (typeof d === "string") {
+    const t = Date.parse(d);
+    return Number.isNaN(t) ? null : new Date(t);
+  }
+  // Milliseconds since epoch
+  if (typeof d === "number") {
+    const dt = new Date(d);
+    return Number.isNaN(dt.getTime()) ? null : dt;
+  }
+  return null;
+};
+
+
+
+  // 🥘 Load recipe info by recipeID
   useEffect(() => {
-    const readMeals = async () => {
-      if (!user) return;
-
+    console.log("Fetch recipe");
+    const fetchRecipe = async () => {
       try {
-        // Calculate the start and end of the selected day
-        const startOfDay = new Date(selectedDate);
-        startOfDay.setUTCHours(0, 0, 0, 0);
+        if (!meal.recipeID) {
+          setLoading(false);
+          return;
+        }
 
-        const endOfDay = new Date(selectedDate);
-        endOfDay.setUTCHours(23, 59, 59, 999);
-        // 🔥 Query only mealPlans for the selected date
-        const mealPlansRef = collection(db, 'mealPlans');
-        const snapshot = await getDocs(mealPlansRef);
+        const recipeRef = doc(db, "recipes", meal.recipeID);
+        const recipeSnap = await getDoc(recipeRef);
 
-        console.log("Start Date", startOfDay, 'end date', endOfDay)
-
-        // Filter only the parent docs belonging to this user & date range
-        const userPlans = snapshot.docs.filter(docSnap => {
-          const data = docSnap.data();
-          if (!data.date) return false;
-
-          const mealDate = data.date.toDate ? data.date.toDate() : new Date(data.date);
-          return mealDate >= startOfDay && mealDate <= endOfDay;
-        });
-
-        // Fetch subcollections for each matching mealPlan
-        const mealsForSelectedDate = await Promise.all(
-          userPlans.map(async docSnap => {
-            const mealPlanRef = collection(db, 'mealPlans', docSnap.id, 'mealPlan');
-            const mealPlanSnapshot = await getDocs(mealPlanRef);
-
-            return mealPlanSnapshot.docs.map(subDoc => ({
-              id: subDoc.id,
-              ...subDoc.data(),
-              date: docSnap.data().date,
-              userID: docSnap.data().userID,
-            }));
-          })
-        );
-
-        setMeals(mealsForSelectedDate.flat());
-        console.log('Meals for selected date:', mealsForSelectedDate.flat());
-
-      } catch (e) {
-        console.error('Error fetching meals: ', e);
+        if (recipeSnap.exists()) {
+          setRecipe(recipeSnap.data());
+          console.log("Loaded recipe:", recipeSnap.data());
+        } else {
+          console.warn("Recipe not found for ID:", meal.recipeID);
+        }
+      } catch (error) {
+        console.error("Error loading recipe:", error);
+        Alert.alert("Error", "Could not load recipe details.");
+      } finally {
+        setLoading(false);
       }
     };
 
-    readMeals();
-  }, [user, mealDay, weekOffset]);
+    fetchRecipe();
+  }, [meal.recipeID]);
 
-
-  // Add a new meal manually
-  const addMeal = async () => {
-    if (!user || !mealName.trim()) return;
-
-    const newMeal = {
-      mealName: mealName.trim(),
-      day: mealDay,
-      weekStart: todayString,
-      createdAt: new Date().toISOString(),
-    };
+  // 🗑 Delete meal plan
+  const handleDeleteMeal = async () => {
+    if (!user || !meal?.id) {
+      Alert.alert("Error", "Missing meal info or user not logged in.");
+      return;
+    }
 
     try {
-      const docRef = await addDoc(
-        collection(db, 'mealPlans', user.uid, 'mealPlan'),
-        newMeal
-      );
-      setMeals([...meals, { id: docRef.id, ...newMeal }]);
-      setMealName('');
-    } catch (e) {
-      console.error('Error adding meal: ', e);
+      await deleteDoc(doc(db, "mealPlans", user.uid, "mealPlan", meal.id));
+      Alert.alert("Deleted", "Meal has been deleted from your planner.");
+      navigation.goBack();
+    } catch (error) {
+      console.error("Error deleting meal:", error);
+      Alert.alert("Error", "Could not delete meal.");
     }
   };
 
-  // === Group meals case-insensitively ===
-  const groupedMeals = {
-    Breakfast: meals.filter(
-      m => m.mealType && m.mealType.toLowerCase() === 'breakfast'
-    ),
-    Lunch: meals.filter(
-      m => m.mealType && m.mealType.toLowerCase() === 'lunch'
-    ),
-    Dinner: meals.filter(
-      m => m.mealType && m.mealType.toLowerCase() === 'dinner'
-    ),
-  };
-
-  const renderMeal = ({ item }) => (
-    <View>
-      <TouchableOpacity
-        style={styles.item}
-        onPress={() =>
-          navigation.navigate('Meal Planner Detail', { meal: item })
-        }
-      >
-        <Text>Meal: {item.mealName}</Text>
-        <Text>Type: {item.mealType}</Text>
-        {item.createdAt && (
-          <Text>Added: {new Date(item.createdAt).toDateString()}</Text>
-        )}
-      </TouchableOpacity>
-      <Divider />
-    </View>
-  );
-
-  const renderCategory = (title, data) => (
-    <View key={title} style={styles.categoryContainer}>
-      <Text style={styles.categoryTitle}>{title}</Text>
-      {data.length > 0 ? (
-        data.map(item => (
-          <View key={item.id}>
-            <TouchableOpacity
-              style={styles.item}
-              onPress={() =>
-                navigation.navigate('Meal Planner Detail', { meal: item })
-              }
-            >
-              <Text>Meal: {item.mealName}</Text>
-              <Text>Type: {item.mealType}</Text>
-              {item.createdAt && (
-                <Text>Added: {new Date(item.createdAt).toDateString()}</Text>
-              )}
-            </TouchableOpacity>
-            <Divider />
-          </View>
-        ))
-      ) : (
-        <Text style={styles.emptyText}>No {title.toLowerCase()} added yet.</Text>
-      )}
-    </View>
-  );
-  // === end grouping ===
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.center}>
+        <Text>Loading recipe details...</Text>
+      </SafeAreaView>
+    );
+  }
 
   return (
-    <SafeAreaView style={{ flex: 1 }}>
-      <View style={{ alignSelf: 'center', margin: 20 }}>
-        <Text style={{ fontSize: 16, color: 'gray' }}>{todayString}</Text>
-      </View>
+    <SafeAreaView style={{ flex: 1, backgroundColor: "#f7f7f7" }}>
+      <ScrollView contentContainerStyle={styles.container}>
+        {/* ✅ Optional image at top */}
+        {recipe?.picture && (
+          <Image source={{ uri: recipe.picture }} style={styles.image} />
+        )}
 
-      {/* Week navigation */}
-      <View style={styles.weekNav}>
-        <Button mode="outlined" onPress={() => setWeekOffset(weekOffset - 1)}>
-          ⬅ Prev Week
-        </Button>
-        <Button mode="outlined" onPress={() => setWeekOffset(weekOffset + 1)}>
-          Next Week ➡
-        </Button>
-      </View>
+        {/* Meal Summary */}
+        <Card style={styles.card}>
+          <Card.Content>
+            <Text style={styles.title}>{recipe?.name || meal.recipeName}</Text>
+            <Text style={styles.subText}>Type: {meal.mealType}</Text>
+            <Text style={styles.subText}>
+              Date: {new Date(meal.date).toDateString()}
+            </Text>
+          </Card.Content>
+        </Card>
 
-      {/* Day selector */}
-      <View style={styles.daysRow}>
-        {DAYS.map(day => (
-          <TouchableOpacity
-            key={day}
-            style={[styles.dayButton, mealDay === day && styles.daySelected]}
-            onPress={() => setMealDay(day)}
-          >
-            <Text>{day}</Text>
-          </TouchableOpacity>
-        ))}
-      </View>
+        {/* Recipe Details */}
+        {recipe ? (
+          <>
+            {/* Ingredients */}
+            <Card style={styles.card}>
+              <Card.Content>
+                <Text style={styles.sectionTitle}>Ingredients</Text>
+                {recipe.ingredients?.map((ing, index) => (
+                  <Text key={index} style={styles.itemText}>
+                    • {ing.ingredient}
+                    {ing.quantity ? ` — ${ing.quantity}` : ""}
+                  </Text>
+                ))}
+              </Card.Content>
+            </Card>
 
-      {/* Meals list: now rendered grouped by Breakfast/Lunch/Dinner */}
-      <FlatList
-        data={Object.keys(groupedMeals)}
-        keyExtractor={item => item}
-        renderItem={({ item }) => renderCategory(item, groupedMeals[item])}
-        ListEmptyComponent={
-          <Text style={{ textAlign: 'center', margin: 10 }}>No meals yet</Text>
-        }
-      />
+            {/* Steps */}
+            <Card style={styles.card}>
+              <Card.Content>
+                <Text style={styles.sectionTitle}>Steps</Text>
+                {recipe.steps?.map((step, index) => (
+                  <Text key={index} style={styles.itemText}>
+                    {index + 1}. {step.description}{" "}
+                    {step.time ? `(${step.time})` : ""}
+                  </Text>
+                ))}
+              </Card.Content>
+            </Card>
 
-      {/* Add new meal */}
-      <View style={{ margin: 15 }}>
+            {/* Info */}
+            <Card style={styles.card}>
+              <Card.Content>
+                <Text style={styles.sectionTitle}>Recipe Info</Text>
+                {recipe.totalTime && <Text>Total Time: {recipe.totalTime} min</Text>}
+                {recipe.difficulties && <Text>Difficulty: {recipe.difficulties}</Text>}
+                {recipe.calories && <Text>Calories: {recipe.calories}</Text>}
+                {recipe.servings && <Text>Servings: {recipe.servings}</Text>}
+                {Array.isArray(recipe.type) && (
+                  <Text>Type: {recipe.type.join(", ")}</Text>
+                )}
+              </Card.Content>
+            </Card>
+          </>
+        ) : (
+          <Text style={{ textAlign: "center", color: "#777" }}>
+            No recipe details found for this meal.
+          </Text>
+        )}
 
-        {/* Pick from Recipes */}
+        {/* Delete Button */}
         <Button
-          style={{ marginTop: 10 }}
-          mode="contained"
-          onPress={() =>
-            navigation.navigate('Recipe List', {
-              mealInfo: {
-                date: todayString,   // current week start
-                day: mealDay,        // selected day
-                currentMeals: mealsForDay,
-              },
-            })
-          }
+          mode="outlined"
+          onPress={handleDeleteMeal}
         >
-          Add to Planner From Ai meal
+          Delete Meal From Planner
         </Button>
-      </View>
+      </ScrollView>
     </SafeAreaView>
   );
 };
 
-export default MealPlannerScreen;
+export default MealPlannerDetailScreen;
 
 const styles = StyleSheet.create({
-  item: {
+  container: {
     padding: 15,
-    borderBottomWidth: 1,
-    borderBottomColor: 'gray',
-    marginHorizontal: 5,
   },
-  input: {
-    borderWidth: 1,
-    borderColor: 'gray',
-    borderRadius: 8,
-    marginBottom: 10,
-    padding: 8,
+  image: {
+    width: "100%",
+    height: 200,
+    borderRadius: 10,
+    marginBottom: 12,
   },
-  weekNav: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginHorizontal: 20,
-    marginBottom: 10,
+  center: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
   },
-  daysRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    marginVertical: 10,
+  card: {
+    marginBottom: 12,
   },
-  dayButton: {
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    borderWidth: 1,
-    borderColor: '#ccc',
-    borderRadius: 8,
-  },
-  daySelected: {
-    backgroundColor: '#ddd',
-  },
-  categoryContainer: {
-    marginVertical: 10,
-  },
-  categoryTitle: {
-    fontSize: 18,
-    fontWeight: '700',
+  title: {
+    fontSize: 22,
+    fontWeight: "700",
+    color: "#333",
     marginBottom: 5,
-    paddingHorizontal: 10,
   },
-  emptyText: {
-    fontSize: 14,
-    color: 'gray',
-    paddingHorizontal: 10,
-    paddingBottom: 10,
+  subText: {
+    color: "#555",
+    marginBottom: 3,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: "bold",
+    marginBottom: 6,
+  },
+  itemText: {
+    marginBottom: 4,
+    color: "#333",
+  },
+  deleteButton: {
+    borderColor: "#d9534f",
+    borderWidth: 1,
+    marginTop: 10,
+    alignSelf: "center",
+    width: 180,
   },
 });
