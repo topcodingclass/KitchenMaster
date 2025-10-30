@@ -4,12 +4,12 @@
 #include "DHT.h"
 
 
-#define WIFI_SSID     "Jos Home"
-#define WIFI_PASSWORD "joeljoann37"
+#define WIFI_SSID     ""
+#define WIFI_PASSWORD ""
 
-#define API_KEY       "AIzaSyBHaiRVMug-oIs9uaKmaJYyRP9Yus1jFeg"
-#define DATABASE_URL  "kitchenmaster-73e91.firebaseio.com"
-#define FIREBASE_PROJECT_ID "kitchenmaster-73e91"
+#define API_KEY       ""
+#define DATABASE_URL  ""
+#define FIREBASE_PROJECT_ID ""
 
 #define USER_EMAIL "test@email.com"
 #define USER_PASSWORD "test1234"
