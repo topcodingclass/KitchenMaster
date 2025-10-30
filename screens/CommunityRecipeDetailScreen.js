@@ -1,18 +1,18 @@
 import React, { useLayoutEffect, useState, useEffect, useRef } from 'react';
 import { SafeAreaView, StyleSheet, View, ScrollView, TouchableOpacity } from 'react-native';
 import { Text, Button, Divider } from 'react-native-paper';
-import StarRating from 'react-native-star-rating-widget'; // ✅ fixed import
+import StarRating from 'react-native-star-rating-widget';
 import { Rating, AirbnbRating } from 'react-native-ratings';
 
 const CommunityRecipeDetailScreen = ({ navigation, route }) => {
   const { recipe } = route.params;
 
-  // TIMER STATE
+
   const [secondsLeft, setSecondsLeft] = useState(0);
   const [isRunning, setIsRunning] = useState(false);
   const intervalRef = useRef(null);
 
-  // RATINGS STATE
+ 
   const [ratingsList, setRatingsList] = useState(recipe.rating || []);
   const [rating, setRating] = useState(0);
 
@@ -22,7 +22,6 @@ const CommunityRecipeDetailScreen = ({ navigation, route }) => {
     return total / ratings.length;
   };
 
-  // Update header title and average rating display dynamically when ratingsList changes
   useLayoutEffect(() => {
     navigation.setOptions({
       title: recipe.name,
@@ -30,7 +29,7 @@ const CommunityRecipeDetailScreen = ({ navigation, route }) => {
         <View style={{ marginRight: 5, flexDirection: 'row' }}>
           <StarRating
             rating={getAverageRating(ratingsList)}
-            onChange={() => {}} // ✅ read-only mode
+            onChange={() => {}} 
             starSize={18}
             color="gold"
             enableHalfStar={true}
@@ -82,7 +81,6 @@ const CommunityRecipeDetailScreen = ({ navigation, route }) => {
     setSecondsLeft(0);
   };
 
-  // ✅ ADDED FUNCTION TO HANDLE RATING FROM `react-native-ratings`
   const ratingCompleted = (newRating) => {
     console.log("Rating is: " + newRating);
     setRating(newRating);
